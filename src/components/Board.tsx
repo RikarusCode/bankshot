@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { coordKey, sameCoord } from "../game/directions";
 import { isCellAvailable } from "../game/puzzleValidation";
 import type { Coord, Direction, FixedPiece, PlayerPiece, PuzzleConfig } from "../game/types";
@@ -29,6 +29,8 @@ export function Board({
   onDropNewPiece,
   onDragPlayerPiece
 }: BoardProps) {
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [boardSize, setBoardSize] = useState(0);
   const fixedByCell = new Map<string, FixedPiece>(puzzle.fixedPieces.map((piece) => [coordKey(piece.coord), piece]));
   const playerByCell = new Map<string, PlayerPiece>(playerPieces.map((piece) => [coordKey(piece.coord), piece]));
   const cells: Coord[] = [];
@@ -38,6 +40,17 @@ export function Board({
       cells.push({ row, col });
     }
   }
+
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+
+    const updateSize = () => setBoardSize(board.getBoundingClientRect().width);
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(board);
+    return () => observer.disconnect();
+  }, []);
 
   function pocketEdge(coord: Coord): "top" | "right" | "bottom" | "left" | undefined {
     if (!sameCoord(coord, puzzle.pocket)) return undefined;
@@ -51,7 +64,7 @@ export function Board({
   return (
     <div className="table-wrap">
       <div className="table-rail">
-        <div className="board" style={{ gridTemplateColumns: `repeat(${puzzle.size}, 1fr)` }}>
+        <div ref={boardRef} className="board" style={{ gridTemplateColumns: `repeat(${puzzle.size}, 1fr)` }}>
           {cells.map((coord) => {
             const key = coordKey(coord);
             const playerPiece = playerByCell.get(key);
@@ -86,8 +99,8 @@ export function Board({
             <div
               className={`eight-ball dir-${ball.direction}`}
               style={{
-                "--ball-x": `${((ball.coord.col + 0.5) / puzzle.size) * 100}%`,
-                "--ball-y": `${((ball.coord.row + 0.5) / puzzle.size) * 100}%`,
+                "--ball-x": `${((ball.coord.col + 0.5) / puzzle.size) * boardSize}px`,
+                "--ball-y": `${((ball.coord.row + 0.5) / puzzle.size) * boardSize}px`,
                 "--cell-size": `${100 / puzzle.size}%`
               } as CSSProperties}
             >

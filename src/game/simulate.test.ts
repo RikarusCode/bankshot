@@ -36,7 +36,17 @@ it("bounces back after entering a solid block cell", () => {
     []
   );
   expect(result.status).toBe("loop");
-  expect(result.path.some((step) => step.position.row === 3 && step.position.col === 1 && step.event === "bounce" && step.pieceKind === "solidBlock")).toBe(true);
+  expect(
+    result.path.some(
+      (step) =>
+        step.position.row === 4 &&
+        step.position.col === 1 &&
+        step.target?.row === 3 &&
+        step.target.col === 1 &&
+        step.event === "bounce" &&
+        step.pieceKind === "solidBlock"
+    )
+  ).toBe(true);
 });
 
 it("cracked blocks bounce back once and disappear for loop state", () => {

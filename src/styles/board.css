@@ -228,15 +228,12 @@
   color: #ffffff;
   font-size: clamp(0.9rem, 3vw, 1.5rem);
   font-weight: 900;
-  left: var(--ball-x);
-  top: var(--ball-y);
+  left: 0;
+  top: 0;
   z-index: 6;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.32);
-  transform: translate(-50%, -50%);
-  transition:
-    left 300ms cubic-bezier(0.22, 0.8, 0.22, 1),
-    top 300ms cubic-bezier(0.22, 0.8, 0.22, 1),
-    transform 300ms linear;
+  transform: translate3d(calc(var(--ball-x) - 50%), calc(var(--ball-y) - 50%), 0);
+  will-change: transform;
   pointer-events: none;
 }
 

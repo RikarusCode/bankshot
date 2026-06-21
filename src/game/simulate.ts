@@ -95,19 +95,17 @@ export function simulateShot(puzzle: PuzzleConfig, playerPieces: PlayerPiece[]):
     }
 
     if (piece.kind === "solidBlock") {
-      position = next;
       direction = opposite(direction);
       bounces += 1;
-      path.push({ position, direction, event: "bounce", pieceKind: piece.kind });
+      path.push({ position, direction, event: "bounce", target: next, pieceKind: piece.kind });
       continue;
     }
 
     if (piece.kind === "crackedBlock") {
       pieces.delete(piece.coord);
-      position = next;
       direction = opposite(direction);
       bounces += 1;
-      path.push({ position, direction, event: "break", pieceKind: piece.kind });
+      path.push({ position, direction, event: "break", target: next, pieceKind: piece.kind });
       continue;
     }
 
