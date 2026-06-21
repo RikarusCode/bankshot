@@ -1,0 +1,110 @@
+.import-export {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.import-export textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  border: 1px solid #ccd8d2;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f7faf8;
+  color: #1b2d27;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 0.84rem;
+}
+
+.editor-shell {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.editor-controls {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.editor-controls label {
+  display: grid;
+  gap: 5px;
+  color: #52685f;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.editor-controls input,
+.editor-controls select {
+  min-height: 38px;
+  border: 1px solid #ccd8d2;
+  border-radius: 7px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: #1b2d27;
+}
+
+.tool-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.editor-board {
+  display: grid;
+  width: min(100%, 620px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 8px solid #573c25;
+  border-radius: 8px;
+  background: #1c6a50;
+}
+
+.editor-cell {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid rgba(232, 249, 240, 0.14);
+  border-bottom: 1px solid rgba(232, 249, 240, 0.14);
+  background: rgba(255, 255, 255, 0.02);
+  color: #f7f7eb;
+  font-size: clamp(0.92rem, 3vw, 1.6rem);
+  font-weight: 900;
+}
+
+.editor-cell.start {
+  background: rgba(251, 241, 188, 0.2);
+}
+
+.editor-cell.pocket {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 740px) {
+  .editor-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 500px) {
+  .editor-controls {
+    grid-template-columns: 1fr;
+  }
+}
