@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Board } from "./components/Board";
+import { ArchivePanel } from "./components/ArchivePanel";
 import { Inventory } from "./components/Inventory";
 import { ModeTabs } from "./components/ModeTabs";
 import { PuzzleEditor } from "./components/PuzzleEditor";
@@ -9,8 +10,8 @@ import { RuleModal } from "./components/RuleModal";
 import { ShareButton } from "./components/ShareButton";
 import { ShootControls } from "./components/ShootControls";
 import { StatsBar } from "./components/StatsBar";
+import { fetchDailyPuzzle } from "./game/archiveApi";
 import { coordKey } from "./game/directions";
-import { getDailyPuzzle, localDateString } from "./game/daily";
 import { validatePlayerPieces, isCellAvailable } from "./game/puzzleValidation";
 import { shareText } from "./game/scoring";
 import { simulateShot } from "./game/simulate";
@@ -18,7 +19,6 @@ import { loadDailyProgress, loadStreak, saveDailyProgress, updateStreakOnSolve }
 import type { Coord, DailyProgress, Mode, PlayerPiece, PuzzleConfig, SimulationResult, StreakState } from "./game/types";
 import { sampleCustomPuzzle } from "./puzzles";
 
-const dailyPuzzle = getDailyPuzzle();
 type DragState = {
   kind: "slash" | "backslash";
   pieceId?: string;
@@ -55,7 +55,12 @@ function SoundIcon({ muted }: { muted: boolean }) {
 
 export default function App() {
   const [mode, setMode] = useState<Mode>("daily");
+  const [dailyPuzzle, setDailyPuzzle] = useState<PuzzleConfig | undefined>();
+  const [dailyStatus, setDailyStatus] = useState<"loading" | "ready" | "missing" | "error">("loading");
+  const [dailyMessage, setDailyMessage] = useState("");
   const [customPuzzle, setCustomPuzzle] = useState<PuzzleConfig>(sampleCustomPuzzle);
+  const [archivePuzzle, setArchivePuzzle] = useState<PuzzleConfig | undefined>();
+  const [archiveDate, setArchiveDate] = useState<string | undefined>();
   const [playerPieces, setPlayerPieces] = useState<PlayerPiece[]>([]);
   const [selectedPlacement, setSelectedPlacement] = useState<"slash" | "backslash" | undefined>();
   const [selectedPieceId, setSelectedPieceId] = useState<string | undefined>();
@@ -65,11 +70,37 @@ export default function App() {
   const [dragging, setDragging] = useState<DragState | undefined>();
   const [muted, setMuted] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
-  const [dailyProgress, setDailyProgress] = useState<DailyProgress>(() => loadDailyProgress(dailyPuzzle.id, localDateString()));
+  const [dailyProgress, setDailyProgress] = useState<DailyProgress | undefined>();
   const [streak, setStreak] = useState<StreakState>(() => loadStreak());
 
-  const puzzle = mode === "daily" ? dailyPuzzle : customPuzzle;
-  const solved = mode === "daily" ? dailyProgress.solved : revealedResult?.status === "win";
+  const puzzle = mode === "daily" ? dailyPuzzle : mode === "archive" ? archivePuzzle : customPuzzle;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDaily() {
+      setDailyStatus("loading");
+      setDailyMessage("");
+      const result = await fetchDailyPuzzle();
+      if (cancelled) return;
+      if (result.data) {
+        const nextPuzzle = result.data.puzzle;
+        setDailyPuzzle(nextPuzzle);
+        setDailyProgress(loadDailyProgress(nextPuzzle.id, nextPuzzle.date ?? result.data.date));
+        setDailyStatus("ready");
+      } else {
+        setDailyPuzzle(undefined);
+        setDailyProgress(undefined);
+        setDailyStatus(result.status === 404 ? "missing" : "error");
+        setDailyMessage(result.error ?? "Could not load today's puzzle.");
+      }
+    }
+
+    void loadDaily();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setPlayerPieces([]);
@@ -78,10 +109,10 @@ export default function App() {
     setShot(undefined);
     setRevealedResult(undefined);
     setLocked(false);
-  }, [puzzle.id, mode]);
+  }, [puzzle?.id, mode]);
 
-  const validationErrors = useMemo(() => validatePlayerPieces(puzzle, playerPieces), [puzzle, playerPieces]);
-  const shootDisabled = locked || Boolean(revealedResult) || validationErrors.length > 0;
+  const validationErrors = useMemo(() => (puzzle ? validatePlayerPieces(puzzle, playerPieces) : []), [puzzle, playerPieces]);
+  const shootDisabled = !puzzle || locked || Boolean(revealedResult) || validationErrors.length > 0;
 
   useEffect(() => {
     if (!dragging) return;
@@ -113,6 +144,7 @@ export default function App() {
   }, [dragging, playerPieces, puzzle, locked]);
 
   function startInventoryDrag(kind: "slash" | "backslash", event: ReactPointerEvent) {
+    if (!puzzle) return;
     if (locked || !hasInventory(puzzle, playerPieces, kind)) return;
     event.preventDefault();
     event.stopPropagation();
@@ -131,6 +163,7 @@ export default function App() {
   }
 
   function placePiece(kind: "slash" | "backslash", coord: Coord) {
+    if (!puzzle) return;
     if (locked || !hasInventory(puzzle, playerPieces, kind)) return;
     if (!isCellAvailable(puzzle, playerPieces, coord.row, coord.col)) return;
     setPlayerPieces((current) => [...current, { id: makePieceId(), coord, kind }]);
@@ -140,6 +173,7 @@ export default function App() {
   }
 
   function movePiece(pieceId: string, coord: Coord) {
+    if (!puzzle) return;
     if (locked || !isCellAvailable(puzzle, playerPieces, coord.row, coord.col, pieceId)) return;
     setPlayerPieces((current) => current.map((piece) => (piece.id === pieceId ? { ...piece, coord } : piece)));
     setSelectedPieceId(undefined);
@@ -174,12 +208,14 @@ export default function App() {
   }
 
   function selectInventory(kind: "slash" | "backslash") {
+    if (!puzzle) return;
     if (locked || !hasInventory(puzzle, playerPieces, kind)) return;
     setSelectedPlacement((current) => (current === kind ? undefined : kind));
     setSelectedPieceId(undefined);
   }
 
   function shoot() {
+    if (!puzzle) return;
     if (shootDisabled) return;
     const nextResult = simulateShot(puzzle, playerPieces);
     setShot({ id: Date.now(), result: nextResult });
@@ -188,7 +224,7 @@ export default function App() {
     setSelectedPlacement(undefined);
     setSelectedPieceId(undefined);
 
-    if (mode === "daily" && !dailyProgress.solved) {
+    if (mode === "daily" && dailyProgress && !dailyProgress.solved) {
       const nextProgress: DailyProgress = {
         ...dailyProgress,
         attempts: dailyProgress.attempts + 1,
@@ -220,7 +256,7 @@ export default function App() {
     setLocked(false);
     setRevealedResult(result);
 
-    if (mode === "daily" && !dailyProgress.solved) {
+    if (mode === "daily" && dailyProgress && !dailyProgress.solved) {
       const nextProgress: DailyProgress = {
         ...dailyProgress,
         solved: result.status === "win",
@@ -238,7 +274,13 @@ export default function App() {
     setMode("custom");
   }
 
-  const share = shareText(puzzle, dailyProgress, streak);
+  function playArchivePuzzle(nextPuzzle: PuzzleConfig, date: string) {
+    setArchivePuzzle(nextPuzzle);
+    setArchiveDate(date);
+    setMode("archive");
+  }
+
+  const share = dailyPuzzle && dailyProgress ? shareText(dailyPuzzle, dailyProgress, streak) : "";
 
   return (
     <main className="app-shell">
@@ -261,22 +303,36 @@ export default function App() {
 
       {mode === "editor" ? (
         <PuzzleEditor onPlayPuzzle={importCustomPuzzle} />
+      ) : mode === "daily" && !puzzle ? (
+        <section className="empty-state">
+          <h2>{dailyStatus === "loading" ? "Loading today's Bankshot..." : "No daily puzzle scheduled"}</h2>
+          {dailyStatus !== "loading" && <p>{dailyMessage || "Check the archive or add today's puzzle through the admin tools."}</p>}
+        </section>
       ) : (
         <div className="play-layout">
           <section className="game-column">
-            <StatsBar mode={mode} puzzle={puzzle} progress={dailyProgress} streak={streak} />
-            <Board
-              puzzle={puzzle}
-              playerPieces={playerPieces}
-              selectedPieceId={selectedPieceId}
-              selectedPlacement={selectedPlacement}
-              locked={locked}
-              shot={shot}
-              muted={muted}
-              onShotComplete={completeShot}
-              onCellClick={handleCellClick}
-              onStartPieceDrag={startPieceDrag}
-            />
+            {puzzle ? (
+              <>
+                <StatsBar mode={mode} puzzle={puzzle} progress={dailyProgress} streak={streak} />
+                <Board
+                  puzzle={puzzle}
+                  playerPieces={playerPieces}
+                  selectedPieceId={selectedPieceId}
+                  selectedPlacement={selectedPlacement}
+                  locked={locked}
+                  shot={shot}
+                  muted={muted}
+                  onShotComplete={completeShot}
+                  onCellClick={handleCellClick}
+                  onStartPieceDrag={startPieceDrag}
+                />
+              </>
+            ) : (
+              <section className="empty-state">
+                <h2>Choose an archive puzzle</h2>
+                <p>Available past puzzles can be played from the archive list.</p>
+              </section>
+            )}
             {validationErrors.length > 0 && (
               <ul className="errors">
                 {validationErrors.map((error) => (
@@ -287,10 +343,15 @@ export default function App() {
           </section>
 
           <aside className="side-panel">
-            <Inventory inventory={puzzle.inventory} playerPieces={playerPieces} selectedPlacement={selectedPlacement} locked={locked} onSelect={selectInventory} onStartDrag={startInventoryDrag} />
-            <ShootControls animating={locked} disabled={shootDisabled} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
-            <ResultPanel result={revealedResult} />
-            {mode === "daily" && <ShareButton text={share} disabled={!dailyProgress.solved} />}
+            {mode === "archive" && <ArchivePanel selectedDate={archiveDate} onPlayPuzzle={playArchivePuzzle} />}
+            {puzzle && (
+              <>
+                <Inventory inventory={puzzle.inventory} playerPieces={playerPieces} selectedPlacement={selectedPlacement} locked={locked} onSelect={selectInventory} onStartDrag={startInventoryDrag} />
+                <ShootControls animating={locked} disabled={shootDisabled} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
+                <ResultPanel result={revealedResult} />
+              </>
+            )}
+            {mode === "daily" && <ShareButton text={share} disabled={!dailyProgress?.solved} />}
             {mode === "custom" && <PuzzleImportExport puzzle={customPuzzle} onImport={importCustomPuzzle} />}
           </aside>
         </div>

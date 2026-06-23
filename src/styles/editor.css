@@ -4,6 +4,12 @@
   padding: 12px;
 }
 
+.archive-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
 .panel-heading {
   display: flex;
   align-items: center;
@@ -11,7 +17,15 @@
   gap: 10px;
 }
 
-.import-export textarea {
+.panel-heading p {
+  margin: 3px 0 0;
+  color: #6a7b74;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.import-export textarea,
+.archive-editor textarea {
   width: 100%;
   min-height: 220px;
   resize: vertical;
@@ -22,6 +36,83 @@
   color: #1b2d27;
   font-family: "Cascadia Code", Consolas, monospace;
   font-size: 0.84rem;
+}
+
+.archive-list {
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.archive-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #d4ddd8;
+  border-radius: 8px;
+  background: #f7faf8;
+}
+
+.archive-row.active {
+  border-color: #d8ac37;
+  box-shadow: inset 0 0 0 2px rgba(216, 172, 55, 0.24);
+}
+
+.archive-row div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.archive-row strong {
+  color: #17372f;
+}
+
+.archive-row span,
+.archive-row small,
+.archive-note {
+  color: #60766c;
+}
+
+.archive-actions,
+.archive-admin,
+.archive-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.archive-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.archive-admin {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.archive-admin input {
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid #ccd8d2;
+  border-radius: 7px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: #1b2d27;
+}
+
+@media (max-width: 560px) {
+  .archive-admin,
+  .archive-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.archive-note {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
 }
 
 .editor-shell {

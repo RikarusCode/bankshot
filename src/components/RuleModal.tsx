@@ -20,3 +20,4 @@ export function RuleModal({ open, onClose }: RuleModalProps) {
     </div>
   );
 }
+ 

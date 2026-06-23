@@ -79,7 +79,15 @@ export type SimulationResult = {
   reason?: "loopGuard";
 };
 
-export type Mode = "daily" | "custom" | "editor";
+export type Mode = "daily" | "archive" | "custom" | "editor";
+
+export type ArchiveEntry = {
+  date: string;
+  number: number;
+  status: "available" | "locked" | "missing";
+  title?: string;
+  puzzle?: PuzzleConfig;
+};
 
 export type DailyProgress = {
   puzzleId: string;
