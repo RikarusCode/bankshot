@@ -1,13 +1,15 @@
 import type { PuzzleConfig } from "./types";
 import { validatePuzzle } from "./puzzleValidation";
+import { normalizeInventory } from "./inventory";
 
 export function serializePuzzle(puzzle: PuzzleConfig): string {
-  return JSON.stringify(puzzle, null, 2);
+  return JSON.stringify({ ...puzzle, inventory: normalizeInventory(puzzle.inventory) }, null, 2);
 }
 
-function normalizeLegacyPieceKinds(puzzle: PuzzleConfig): PuzzleConfig {
+function normalizeLegacyPuzzle(puzzle: PuzzleConfig): PuzzleConfig {
   return {
     ...puzzle,
+    inventory: normalizeInventory(puzzle.inventory),
     fixedPieces: puzzle.fixedPieces.map((piece) => {
       const kind = piece.kind as string;
       if (kind === "crackedBlock") return { ...piece, kind: "glassBlock" };
@@ -20,7 +22,7 @@ function normalizeLegacyPieceKinds(puzzle: PuzzleConfig): PuzzleConfig {
 
 export function parsePuzzleJson(source: string): { puzzle?: PuzzleConfig; errors: string[] } {
   try {
-    const puzzle = normalizeLegacyPieceKinds(JSON.parse(source) as PuzzleConfig);
+    const puzzle = normalizeLegacyPuzzle(JSON.parse(source) as PuzzleConfig);
     return { puzzle, errors: validatePuzzle(puzzle) };
   } catch (error) {
     return { errors: [error instanceof Error ? error.message : "Invalid JSON."] };

@@ -8,6 +8,7 @@ import { Cell } from "./Cell";
 const BALL_SPEED_CELLS_PER_SECOND = 5.2;
 const CUE_ANIMATION_MS = 360;
 const BALL_SINK_MS = 520;
+const POCKET_SINK_EXTRA_CELLS = 0.14;
 
 type BoardProps = {
   puzzle: PuzzleConfig;
@@ -22,10 +23,10 @@ type BoardProps = {
 };
 
 function pocketDropPoint(position: Coord, size: number): Coord {
-  if (position.row < 0) return { row: -0.5, col: position.col };
-  if (position.row >= size) return { row: size - 0.5, col: position.col };
-  if (position.col < 0) return { row: position.row, col: -0.5 };
-  if (position.col >= size) return { row: position.row, col: size - 0.5 };
+  if (position.row < -0.5) return { row: position.row - POCKET_SINK_EXTRA_CELLS, col: position.col };
+  if (position.row > size - 0.5) return { row: position.row + POCKET_SINK_EXTRA_CELLS, col: position.col };
+  if (position.col < -0.5) return { row: position.row, col: position.col - POCKET_SINK_EXTRA_CELLS };
+  if (position.col > size - 0.5) return { row: position.row, col: position.col + POCKET_SINK_EXTRA_CELLS };
   return position;
 }
 
@@ -100,8 +101,9 @@ export function Board({
     const ball = ballRef.current;
     const metrics = ballMetrics();
     if (!ball || !metrics) return;
-    const x = ((coord.col + 0.5) / puzzle.size) * metrics.width - metrics.ballSize / 2;
-    const y = ((coord.row + 0.5) / puzzle.size) * metrics.width - metrics.ballSize / 2;
+    const offset = boardOffsetInRail();
+    const x = offset.x + ((coord.col + 0.5) / puzzle.size) * metrics.width - metrics.ballSize / 2;
+    const y = offset.y + ((coord.row + 0.5) / puzzle.size) * metrics.width - metrics.ballSize / 2;
     ball.style.width = `${metrics.ballSize}px`;
     ball.style.opacity = `${opacity}`;
     ball.style.filter = blur > 0 ? `blur(${blur}px)` : "";
@@ -304,9 +306,9 @@ export function Board({
               />
             );
           })}
-          <div ref={ballRef} className={`eight-ball ${sinking ? "sinking" : ""}`} style={{ "--cell-size": `${100 / puzzle.size}%` } as CSSProperties}>
-            <span className="eight-ball-number">8</span>
-          </div>
+        </div>
+        <div ref={ballRef} className={`eight-ball ${sinking ? "sinking" : ""}`} style={{ "--cell-size": `${100 / puzzle.size}%` } as CSSProperties}>
+          <span className="eight-ball-number">8</span>
         </div>
         {shot && (
           <div className="cue-launch" style={cueStyle()} aria-hidden="true">

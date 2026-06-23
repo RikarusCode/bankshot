@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type { Coord, FixedPiece, PieceKind, PlayerPiece } from "../game/types";
+import type { Coord, FixedPiece, GateConfig, PieceKind, PlayerPiece } from "../game/types";
 
 type CellProps = {
   coord: Coord;
@@ -32,12 +32,12 @@ function pieceLabel(kind: PieceKind): string {
   }
 }
 
-function gateSideClass(fixedPiece?: FixedPiece): string {
-  if (!fixedPiece?.gate) return " gate-slash gate-pass-ne";
-  const orientationClass = fixedPiece.gate.orientation === "slash" ? "gate-slash" : "gate-backslash";
-  const passDirection = fixedPiece.gate.passDirection;
+function gateSideClass(piece?: { gate?: GateConfig }): string {
+  if (!piece?.gate) return " gate-slash gate-pass-ne";
+  const orientationClass = piece.gate.orientation === "slash" ? "gate-slash" : "gate-backslash";
+  const passDirection = piece.gate.passDirection;
   let sideClass = "gate-pass-ne";
-  if (fixedPiece.gate.orientation === "slash") {
+  if (piece.gate.orientation === "slash") {
     sideClass = passDirection === "N" || passDirection === "E" ? "gate-pass-ne" : "gate-pass-sw";
   } else {
     sideClass = passDirection === "N" || passDirection === "W" ? "gate-pass-nw" : "gate-pass-se";
@@ -45,12 +45,12 @@ function gateSideClass(fixedPiece?: FixedPiece): string {
   return ` ${orientationClass} ${sideClass}`;
 }
 
-function pieceClass(kind: PieceKind, fixedPiece?: FixedPiece): string {
+function pieceClass(kind: PieceKind, piece?: { gate?: GateConfig }): string {
   const orientation = kind === "slash" || kind === "fixedSlash" || kind === "glassSlash" ? " slash-wall" : kind === "backslash" || kind === "fixedBackslash" || kind === "glassBackslash" ? " backslash-wall" : "";
-  if (kind === "slash" || kind === "backslash") return `piece player-piece${orientation}`;
+  if (kind === "slash" || kind === "backslash" || kind === "fixedSlash" || kind === "fixedBackslash") return `piece player-piece${orientation}`;
   if (kind.startsWith("glass")) return `piece fixed-piece glass${orientation}`;
   if (kind === "solidBlock") return "piece fixed-piece block";
-  if (kind === "oneWayGate") return `piece fixed-piece gate${gateSideClass(fixedPiece)}`;
+  if (kind === "oneWayGate") return `piece fixed-piece gate${gateSideClass(piece)}`;
   return `piece fixed-piece${orientation}`;
 }
 
@@ -66,6 +66,7 @@ export function Cell({
   onStartDrag
 }: CellProps) {
   const kind = playerPiece?.kind ?? fixedPiece?.kind;
+  const piece = playerPiece ?? fixedPiece;
 
   return (
     <button
@@ -84,7 +85,7 @@ export function Cell({
     >
       {kind && (
         <span
-          className={pieceClass(kind, fixedPiece)}
+          className={pieceClass(kind, piece)}
           onPointerDown={(event) => {
             if (!playerPiece) return;
             onStartDrag(playerPiece, event);

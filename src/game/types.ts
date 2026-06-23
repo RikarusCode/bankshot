@@ -18,15 +18,19 @@ export type PieceKind =
   | "glassBackslash"
   | "oneWayGate";
 
-export type Inventory = {
-  slash: number;
-  backslash: number;
-};
-
 export type GateConfig = {
   orientation: ReflectorOrientation;
   passDirection: Direction;
 };
+
+export type InventoryPieceKind = "slash" | "backslash" | "solidBlock" | "glassBlock" | "glassSlash" | "glassBackslash" | "oneWayGate";
+
+export type InventoryItem = {
+  kind: InventoryPieceKind;
+  gate?: GateConfig;
+};
+
+export type Inventory = InventoryItem[];
 
 export type FixedPiece = {
   coord: Coord;
@@ -37,7 +41,8 @@ export type FixedPiece = {
 export type PlayerPiece = {
   id: string;
   coord: Coord;
-  kind: "slash" | "backslash";
+  kind: InventoryPieceKind;
+  gate?: GateConfig;
 };
 
 export type PuzzleConfig = {

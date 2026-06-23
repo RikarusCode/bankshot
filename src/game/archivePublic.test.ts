@@ -30,7 +30,7 @@ function puzzle(date: string, number: number): PuzzleConfig {
     start: { row: 7, col: 1 },
     launchDirection: "N",
     pocket: { row: -1, col: 6 },
-    inventory: { slash: 1, backslash: 1 },
+    inventory: [{ kind: "slash" }, { kind: "backslash" }],
     fixedPieces: [{ coord: { row: 3, col: 3 }, kind: "fixedSlash" }]
   };
 }

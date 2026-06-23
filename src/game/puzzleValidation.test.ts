@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parsePuzzleJson, serializePuzzle } from "./puzzleExport";
-import { validatePuzzle } from "./puzzleValidation";
-import type { PuzzleConfig } from "./types";
+import { validatePlayerPieces, validatePuzzle } from "./puzzleValidation";
+import type { PlayerPiece, PuzzleConfig } from "./types";
 
 describe("puzzle validation", () => {
   const puzzle: PuzzleConfig = {
@@ -11,7 +11,7 @@ describe("puzzle validation", () => {
     start: { row: 6, col: 1 },
     launchDirection: "N",
     pocket: { row: -1, col: 4 },
-    inventory: { slash: 1, backslash: 1 },
+    inventory: [{ kind: "slash" }, { kind: "backslash" }],
     fixedPieces: [{ coord: { row: 3, col: 5 }, kind: "fixedSlash" }]
   };
 
@@ -27,5 +27,12 @@ describe("puzzle validation", () => {
     const parsed = parsePuzzleJson(serializePuzzle(puzzle));
     expect(parsed.errors).toEqual([]);
     expect(parsed.puzzle?.id).toBe("valid");
+  });
+
+  it("allows inventory pieces beyond rails and rejects extras", () => {
+    const blockPuzzle = { ...puzzle, inventory: [{ kind: "solidBlock" }] } satisfies PuzzleConfig;
+    const pieces: PlayerPiece[] = [{ id: "block", coord: { row: 2, col: 2 }, kind: "solidBlock" }];
+    expect(validatePlayerPieces(blockPuzzle, pieces)).toEqual([]);
+    expect(validatePlayerPieces(blockPuzzle, [...pieces, { id: "extra", coord: { row: 2, col: 3 }, kind: "solidBlock" }])).toContain("Too many player inventory pieces placed.");
   });
 });

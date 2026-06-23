@@ -49,7 +49,8 @@ export function buildPieceMap(puzzle: PuzzleConfig, playerPieces: PlayerPiece[])
   for (const piece of playerPieces) {
     map.set(coordKey(piece.coord), {
       coord: coordKey(piece.coord),
-      kind: piece.kind
+      kind: piece.kind,
+      gate: piece.gate
     });
   }
 
@@ -71,15 +72,47 @@ export function simulateShot(puzzle: PuzzleConfig, playerPieces: PlayerPiece[]):
   let position = puzzle.start;
   let direction = puzzle.launchDirection;
   let bounces = 0;
+  let recheckCurrentPiece = false;
 
   for (let step = 0; step < maxSteps; step += 1) {
-    const stateKey = `${coordKey(position)}:${direction}:${mutableStateKey(pieces)}`;
+    const stateKey = `${coordKey(position)}:${direction}:${recheckCurrentPiece ? "recheck" : "move"}:${mutableStateKey(pieces)}`;
     const visits = seen.get(stateKey) ?? 0;
     if (visits >= loopAnnouncementRepetitions) {
       path.push({ position, direction, event: "loop" });
       return { status: "loop", path, bounces, reason: "loopGuard" };
     }
     seen.set(stateKey, visits + 1);
+
+    if (recheckCurrentPiece) {
+      recheckCurrentPiece = false;
+      const currentPiece = pieces.get(coordKey(position));
+
+      if (currentPiece?.kind === "oneWayGate") {
+        const gate = currentPiece.gate ?? { orientation: "slash" as const, passDirection: "E" as const };
+        if (!gatePassDirections(gate.orientation, gate.passDirection).includes(direction)) {
+          direction = reflect(direction, gate.orientation);
+          bounces += 1;
+          path.push({ position, direction, event: "bounce", pieceKind: currentPiece.kind });
+          continue;
+        }
+      }
+
+      const currentOrientation = currentPiece ? orientationFor(currentPiece.kind) : null;
+      if (currentPiece && currentOrientation) {
+        if (currentPiece.kind === "glassSlash" || currentPiece.kind === "glassBackslash") {
+          pieces.delete(currentPiece.coord);
+        }
+        direction = reflect(direction, currentOrientation);
+        bounces += 1;
+        path.push({
+          position,
+          direction,
+          event: currentPiece.kind === "glassSlash" || currentPiece.kind === "glassBackslash" ? "break" : "bounce",
+          pieceKind: currentPiece.kind
+        });
+        continue;
+      }
+    }
 
     const next = addDirection(position, direction);
     if (sameCoord(next, puzzle.pocket)) {
@@ -91,6 +124,7 @@ export function simulateShot(puzzle: PuzzleConfig, playerPieces: PlayerPiece[]):
     if (!isInside(next, puzzle.size)) {
       direction = bounceOffWall(position, direction, puzzle.size);
       bounces += 1;
+      recheckCurrentPiece = true;
       path.push({ position, direction, event: "rail", target: next });
       continue;
     }
@@ -105,6 +139,7 @@ export function simulateShot(puzzle: PuzzleConfig, playerPieces: PlayerPiece[]):
     if (piece.kind === "solidBlock") {
       direction = opposite(direction);
       bounces += 1;
+      recheckCurrentPiece = true;
       path.push({ position, direction, event: "bounce", target: next, pieceKind: piece.kind });
       continue;
     }
@@ -113,6 +148,7 @@ export function simulateShot(puzzle: PuzzleConfig, playerPieces: PlayerPiece[]):
       pieces.delete(piece.coord);
       direction = opposite(direction);
       bounces += 1;
+      recheckCurrentPiece = true;
       path.push({ position, direction, event: "break", target: next, pieceKind: piece.kind });
       continue;
     }

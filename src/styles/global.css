@@ -170,14 +170,69 @@ h1 {
   font-size: 1.1rem;
 }
 
-.inventory {
+.board-play-area {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
 }
 
-.inventory button,
+.inventory {
+  align-self: start;
+}
+
+.backpack-inventory {
+  display: grid;
+  width: 86px;
+  min-height: 112px;
+  gap: 10px;
+  justify-items: center;
+  padding: 10px 8px;
+  border-color: rgba(126, 158, 144, 0.78);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(222, 234, 227, 0.9)),
+    rgba(242, 248, 244, 0.9);
+  box-shadow:
+    0 8px 24px rgba(23, 55, 47, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+}
+
+.backpack-header {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 0;
+  background: transparent;
+  color: #0e201b;
+  box-shadow: none;
+}
+
+button.backpack-header {
+  min-height: 54px;
+}
+
+.backpack-icon {
+  width: 34px;
+  height: 34px;
+  fill: currentColor;
+}
+
+.backpack-items {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.backpack-empty {
+  color: #687b72;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.backpack-items button,
 .shoot-controls button,
 .share-button,
 .import-export button,
@@ -195,16 +250,20 @@ h1 {
   font-weight: 800;
 }
 
-.inventory button {
-  min-height: 74px;
+.backpack-items button {
+  position: relative;
+  width: 58px;
+  min-height: 58px;
+  padding: 5px;
   cursor: grab;
+  overflow: visible;
 }
 
-.inventory button:active {
+.backpack-items button:active {
   cursor: grabbing;
 }
 
-.inventory-piece {
+.backpack-piece {
   position: relative;
   display: block;
   width: 48px;
@@ -219,6 +278,11 @@ h1 {
     0 4px 12px rgba(15, 31, 25, 0.12);
 }
 
+.backpack-piece .piece {
+  pointer-events: none;
+  cursor: inherit;
+}
+
 .drag-preview {
   position: fixed;
   left: 0;
@@ -230,7 +294,7 @@ h1 {
   will-change: transform;
 }
 
-.drag-preview .inventory-piece {
+.drag-preview .backpack-piece {
   width: 56px;
   height: 56px;
   box-shadow:
@@ -238,21 +302,30 @@ h1 {
     inset 0 0 0 1px rgba(10, 42, 32, 0.28);
 }
 
-.inventory .active,
+.backpack-items .active,
 .tool-palette .active {
   outline: 3px solid #dfb33d;
   background: #fff8df;
 }
 
-.inventory strong {
+.backpack-items strong {
+  position: absolute;
+  right: -9px;
+  bottom: -8px;
+  z-index: 8;
   display: inline-grid;
-  min-width: 24px;
+  min-width: 28px;
   height: 24px;
+  padding: 0 6px;
   place-items: center;
   border-radius: 999px;
   background: #16372f;
   color: #ffffff;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
+  line-height: 1;
+  box-shadow:
+    0 2px 8px rgba(6, 22, 17, 0.26),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
 .shoot-controls {
@@ -466,5 +539,25 @@ h1 {
 
   .stats-bar {
     grid-template-columns: 1fr;
+  }
+
+  .board-play-area {
+    grid-template-columns: 1fr;
+  }
+
+  .backpack-inventory {
+    width: 100%;
+    min-height: auto;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+  }
+
+  .backpack-items {
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    justify-content: start;
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 2px;
   }
 }

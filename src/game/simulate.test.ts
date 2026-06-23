@@ -10,7 +10,7 @@ const basePuzzle: PuzzleConfig = {
   start: { row: 6, col: 1 },
   launchDirection: "N",
   pocket: { row: 7, col: 4 },
-  inventory: { slash: 2, backslash: 2 },
+  inventory: [{ kind: "slash" }, { kind: "slash" }, { kind: "backslash" }, { kind: "backslash" }],
   fixedPieces: [{ coord: { row: 2, col: 4 }, kind: "fixedBackslash" }]
 };
 
@@ -66,6 +66,34 @@ it("bounces back after entering a solid block cell", () => {
   ).toBe(true);
 });
 
+it("rechecks a rail after an adjacent block bounces the ball back into it", () => {
+  const result = simulateShot(
+    {
+      ...basePuzzle,
+      start: { row: 5, col: 2 },
+      launchDirection: "N",
+      pocket: { row: 7, col: 2 },
+      fixedPieces: [
+        { coord: { row: 3, col: 2 }, kind: "fixedSlash" },
+        { coord: { row: 3, col: 3 }, kind: "solidBlock" }
+      ]
+    },
+    []
+  );
+
+  const blockBounceIndex = result.path.findIndex(
+    (step) => step.position.row === 3 && step.position.col === 2 && step.event === "bounce" && step.target?.row === 3 && step.target.col === 3 && step.pieceKind === "solidBlock"
+  );
+  expect(blockBounceIndex).toBeGreaterThan(-1);
+  expect(result.path[blockBounceIndex + 1]).toMatchObject({
+    position: { row: 3, col: 2 },
+    direction: "S",
+    event: "bounce",
+    pieceKind: "fixedSlash"
+  });
+  expect(result.path.some((step) => step.position.row === 3 && step.position.col === 1)).toBe(false);
+});
+
 it("glass blocks bounce back once and disappear for loop state", () => {
   const result = simulateShot(
     {
@@ -95,6 +123,22 @@ it("glass slash reflects once and then is removed", () => {
   );
   expect(result.status).toBe("win");
   expect(result.path.some((step) => step.event === "break" && step.pieceKind === "glassSlash")).toBe(true);
+});
+
+it("supports player-placed blocks from inventory", () => {
+  const result = simulateShot(
+    {
+      ...basePuzzle,
+      start: { row: 3, col: 0 },
+      launchDirection: "E",
+      pocket: { row: -1, col: 6 },
+      inventory: [{ kind: "solidBlock" }],
+      fixedPieces: []
+    },
+    [{ id: "block", coord: { row: 3, col: 2 }, kind: "solidBlock" }]
+  );
+  expect(result.status).toBe("loop");
+  expect(result.path.some((step) => step.event === "bounce" && step.pieceKind === "solidBlock")).toBe(true);
 });
 
 it("one-way gates pass from both directions on the green side", () => {

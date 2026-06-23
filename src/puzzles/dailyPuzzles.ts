@@ -11,7 +11,7 @@ export const dailyPuzzles: PuzzleConfig[] = [
     start: { row: 6, col: 1 },
     launchDirection: "N",
     pocket: { row: 7, col: 4 },
-    inventory: { slash: 1, backslash: 0 },
+    inventory: [{ kind: "slash" }],
     fixedPieces: [
       { coord: { row: 2, col: 4 }, kind: "fixedBackslash" },
       { coord: { row: 1, col: 1 }, kind: "solidBlock" },
@@ -28,7 +28,7 @@ export const dailyPuzzles: PuzzleConfig[] = [
     start: { row: 7, col: 1 },
     launchDirection: "N",
     pocket: { row: 8, col: 2 },
-    inventory: { slash: 1, backslash: 1 },
+    inventory: [{ kind: "slash" }, { kind: "backslash" }],
     fixedPieces: [
       { coord: { row: 2, col: 1 }, kind: "glassSlash" },
       { coord: { row: 5, col: 5 }, kind: "fixedSlash" },
@@ -46,7 +46,7 @@ export const dailyPuzzles: PuzzleConfig[] = [
     start: { row: 0, col: 1 },
     launchDirection: "S",
     pocket: { row: 2, col: 7 },
-    inventory: { slash: 0, backslash: 1 },
+    inventory: [{ kind: "backslash" }],
     fixedPieces: [
       {
         coord: { row: 2, col: 4 },

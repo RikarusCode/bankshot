@@ -1,6 +1,7 @@
 import type { Coord, Direction, PathStep, PieceKind } from "./types";
 
 const CONTACT_OFFSET_CELLS = 0.22;
+const POCKET_CENTER_OFFSET_CELLS = 0.27;
 const CURVE_LENGTH_SAMPLES = 12;
 
 export type BallAnimationPoint = {
@@ -68,10 +69,10 @@ function contactPoint(position: Coord, incoming: Direction): Coord {
 }
 
 function pocketMouthPoint(position: Coord, size: number): Coord {
-  if (position.row < 0) return { row: -0.28, col: position.col };
-  if (position.row >= size) return { row: size - 0.72, col: position.col };
-  if (position.col < 0) return { row: position.row, col: -0.28 };
-  if (position.col >= size) return { row: position.row, col: size - 0.72 };
+  if (position.row < 0) return { row: -0.5 - POCKET_CENTER_OFFSET_CELLS, col: position.col };
+  if (position.row >= size) return { row: size - 0.5 + POCKET_CENTER_OFFSET_CELLS, col: position.col };
+  if (position.col < 0) return { row: position.row, col: -0.5 - POCKET_CENTER_OFFSET_CELLS };
+  if (position.col >= size) return { row: position.row, col: size - 0.5 + POCKET_CENTER_OFFSET_CELLS };
   return position;
 }
 

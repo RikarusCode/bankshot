@@ -64,4 +64,22 @@ describe("buildBallAnimationSegments", () => {
     expectClose(segments[0].to.coord.row, 3);
     expectClose(segments[0].to.coord.col, 0.22);
   });
+
+  it("aims pocket entries into the rail pocket instead of back into the table", () => {
+    const topPath: PathStep[] = [
+      { position: { row: 1, col: 4 }, direction: "N", event: "move" },
+      { position: { row: 0, col: 4 }, direction: "N", event: "move" },
+      { position: { row: -1, col: 4 }, direction: "N", event: "pocket" }
+    ];
+    const bottomPath: PathStep[] = [
+      { position: { row: 5, col: 2 }, direction: "S", event: "move" },
+      { position: { row: 6, col: 2 }, direction: "S", event: "move" },
+      { position: { row: 7, col: 2 }, direction: "S", event: "pocket" }
+    ];
+
+    const topSegments = buildBallAnimationSegments(topPath, 7);
+    const bottomSegments = buildBallAnimationSegments(bottomPath, 7);
+    expect(topSegments[topSegments.length - 1].to.coord.row).toBeLessThan(-0.5);
+    expect(bottomSegments[bottomSegments.length - 1].to.coord.row).toBeGreaterThan(6.5);
+  });
 });

@@ -12,15 +12,16 @@ import { ShootControls } from "./components/ShootControls";
 import { StatsBar } from "./components/StatsBar";
 import { fetchDailyPuzzle } from "./game/archiveApi";
 import { coordKey } from "./game/directions";
+import { inventoryItemClass, inventoryItemKey, remainingInventory } from "./game/inventory";
 import { validatePlayerPieces, isCellAvailable } from "./game/puzzleValidation";
 import { shareText } from "./game/scoring";
 import { simulateShot } from "./game/simulate";
 import { loadDailyProgress, loadStreak, saveDailyProgress, updateStreakOnSolve } from "./game/storage";
-import type { Coord, DailyProgress, Mode, PlayerPiece, PuzzleConfig, SimulationResult, StreakState } from "./game/types";
+import type { Coord, DailyProgress, InventoryItem, Mode, PlayerPiece, PuzzleConfig, SimulationResult, StreakState } from "./game/types";
 import { sampleCustomPuzzle } from "./puzzles";
 
 type DragState = {
-  kind: "slash" | "backslash";
+  item: InventoryItem;
   pieceId?: string;
   x: number;
   y: number;
@@ -30,8 +31,8 @@ function makePieceId(): string {
   return `piece-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
 }
 
-function hasInventory(puzzle: PuzzleConfig, pieces: PlayerPiece[], kind: "slash" | "backslash"): boolean {
-  return pieces.filter((piece) => piece.kind === kind).length < puzzle.inventory[kind];
+function hasInventory(puzzle: PuzzleConfig, pieces: PlayerPiece[], item: InventoryItem): boolean {
+  return remainingInventory(puzzle.inventory, pieces).some((current) => inventoryItemKey(current) === inventoryItemKey(item));
 }
 
 function SoundIcon({ muted }: { muted: boolean }) {
@@ -63,7 +64,7 @@ export default function App() {
   const [archivePuzzle, setArchivePuzzle] = useState<PuzzleConfig | undefined>();
   const [archiveDate, setArchiveDate] = useState<string | undefined>();
   const [playerPieces, setPlayerPieces] = useState<PlayerPiece[]>([]);
-  const [selectedPlacement, setSelectedPlacement] = useState<"slash" | "backslash" | undefined>();
+  const [selectedPlacement, setSelectedPlacement] = useState<InventoryItem | undefined>();
   const [selectedPieceId, setSelectedPieceId] = useState<string | undefined>();
   const [shot, setShot] = useState<{ id: number; result: SimulationResult } | undefined>();
   const [revealedResult, setRevealedResult] = useState<SimulationResult | undefined>();
@@ -129,7 +130,11 @@ export default function App() {
       if (cell?.dataset.row && cell.dataset.col) {
         const coord = { row: Number(cell.dataset.row), col: Number(cell.dataset.col) };
         if (activeDrag.pieceId) movePiece(activeDrag.pieceId, coord);
-        else placePiece(activeDrag.kind, coord);
+        else placePiece(activeDrag.item, coord);
+      } else if (activeDrag.pieceId && target?.closest?.("[data-inventory-drop='true']")) {
+        setPlayerPieces((current) => current.filter((piece) => piece.id !== activeDrag.pieceId));
+        setShot(undefined);
+        setRevealedResult(undefined);
       }
       setDragging(undefined);
     }
@@ -144,14 +149,14 @@ export default function App() {
     };
   }, [dragging, playerPieces, puzzle, locked]);
 
-  function startInventoryDrag(kind: "slash" | "backslash", event: ReactPointerEvent) {
+  function startInventoryDrag(item: InventoryItem, event: ReactPointerEvent) {
     if (!puzzle) return;
-    if (locked || !hasInventory(puzzle, playerPieces, kind)) return;
+    if (locked || !hasInventory(puzzle, playerPieces, item)) return;
     event.preventDefault();
     event.stopPropagation();
     setSelectedPlacement(undefined);
     setSelectedPieceId(undefined);
-    setDragging({ kind, x: event.clientX, y: event.clientY });
+    setDragging({ item, x: event.clientX, y: event.clientY });
   }
 
   function startPieceDrag(piece: PlayerPiece, event: ReactPointerEvent) {
@@ -160,15 +165,16 @@ export default function App() {
     event.stopPropagation();
     setSelectedPlacement(undefined);
     setSelectedPieceId(piece.id);
-    setDragging({ kind: piece.kind, pieceId: piece.id, x: event.clientX, y: event.clientY });
+    setDragging({ item: { kind: piece.kind, gate: piece.gate }, pieceId: piece.id, x: event.clientX, y: event.clientY });
   }
 
-  function placePiece(kind: "slash" | "backslash", coord: Coord) {
+  function placePiece(item: InventoryItem, coord: Coord) {
     if (!puzzle) return;
-    if (locked || !hasInventory(puzzle, playerPieces, kind)) return;
+    if (locked || !hasInventory(puzzle, playerPieces, item)) return;
     if (!isCellAvailable(puzzle, playerPieces, coord.row, coord.col)) return;
-    setPlayerPieces((current) => [...current, { id: makePieceId(), coord, kind }]);
-    setSelectedPlacement(hasInventory(puzzle, [...playerPieces, { id: "preview", coord, kind }], kind) ? kind : undefined);
+    const nextPiece: PlayerPiece = { id: makePieceId(), coord, kind: item.kind, gate: item.gate };
+    setPlayerPieces((current) => [...current, nextPiece]);
+    setSelectedPlacement(hasInventory(puzzle, [...playerPieces, nextPiece], item) ? item : undefined);
     setShot(undefined);
     setRevealedResult(undefined);
   }
@@ -208,10 +214,10 @@ export default function App() {
     }
   }
 
-  function selectInventory(kind: "slash" | "backslash") {
+  function selectInventory(item: InventoryItem) {
     if (!puzzle) return;
-    if (locked || !hasInventory(puzzle, playerPieces, kind)) return;
-    setSelectedPlacement((current) => (current === kind ? undefined : kind));
+    if (locked || !hasInventory(puzzle, playerPieces, item)) return;
+    setSelectedPlacement((current) => (current && inventoryItemKey(current) === inventoryItemKey(item) ? undefined : item));
     setSelectedPieceId(undefined);
   }
 
@@ -320,17 +326,20 @@ export default function App() {
             {puzzle ? (
               <>
                 <StatsBar mode={mode} puzzle={puzzle} progress={dailyProgress} streak={streak} />
-                <Board
-                  puzzle={puzzle}
-                  playerPieces={playerPieces}
-                  selectedPieceId={selectedPieceId}
-                  locked={locked}
-                  shot={shot}
-                  muted={muted}
-                  onShotComplete={completeShot}
-                  onCellClick={handleCellClick}
-                  onStartPieceDrag={startPieceDrag}
-                />
+                <div className="board-play-area">
+                  <Inventory inventory={puzzle.inventory} playerPieces={playerPieces} selectedItem={selectedPlacement} locked={locked} onSelect={selectInventory} onStartDrag={startInventoryDrag} />
+                  <Board
+                    puzzle={puzzle}
+                    playerPieces={playerPieces}
+                    selectedPieceId={selectedPieceId}
+                    locked={locked}
+                    shot={shot}
+                    muted={muted}
+                    onShotComplete={completeShot}
+                    onCellClick={handleCellClick}
+                    onStartPieceDrag={startPieceDrag}
+                  />
+                </div>
               </>
             ) : (
               <section className="empty-state">
@@ -351,7 +360,6 @@ export default function App() {
             {mode === "archive" && <ArchivePanel selectedDate={archiveDate} onPlayPuzzle={playArchivePuzzle} />}
             {puzzle && (
               <>
-                <Inventory inventory={puzzle.inventory} playerPieces={playerPieces} selectedPlacement={selectedPlacement} locked={locked} onSelect={selectInventory} onStartDrag={startInventoryDrag} />
                 <ShootControls animating={locked} disabled={shootDisabled} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
                 <ResultPanel result={revealedResult} />
               </>
@@ -364,7 +372,9 @@ export default function App() {
 
       {dragging && (
         <div className="drag-preview" style={{ transform: `translate3d(${dragging.x - 28}px, ${dragging.y - 28}px, 0)` }}>
-          <span className={`inventory-piece ${dragging.kind === "slash" ? "slash-wall" : "backslash-wall"}`} />
+          <span className="backpack-piece">
+            <span className={inventoryItemClass(dragging.item)} />
+          </span>
         </div>
       )}
 

@@ -204,12 +204,10 @@
   border: 1px solid rgba(7, 45, 33, 0.75);
   border-radius: 4px;
   background:
-    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.035), transparent 28%),
-    radial-gradient(circle at 76% 74%, rgba(8, 42, 31, 0.1), transparent 34%),
-    repeating-linear-gradient(35deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 5px),
-    #103f32;
+    linear-gradient(rgba(2, 28, 22, 0.62), rgba(2, 28, 22, 0.62)),
+    #0b3329;
   box-shadow:
-    inset 0 0 32px rgba(0, 0, 0, 0.16),
+    inset 0 0 42px rgba(0, 0, 0, 0.24),
     inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
@@ -221,7 +219,9 @@
   place-items: center;
   border: 0;
   background:
-    linear-gradient(rgba(255, 255, 255, 0.018), rgba(0, 0, 0, 0.018)),
+    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.06), transparent 64%),
+    repeating-linear-gradient(24deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 5px),
+    linear-gradient(180deg, rgba(43, 128, 94, 0.22), rgba(10, 66, 49, 0.12)),
     #1b674f;
   color: #f6fbf8;
   cursor: crosshair;
@@ -504,7 +504,7 @@
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
   left: 0;
   top: 0;
-  z-index: 6;
+  z-index: 12;
   box-shadow:
     inset -0.18em -0.2em 0.32em rgba(0, 0, 0, 0.68),
     inset 0.1em 0.1em 0.2em rgba(255, 255, 255, 0.08),
@@ -512,7 +512,7 @@
   transform: translate3d(0, 0, 0);
   will-change: transform;
   pointer-events: none;
-  contain: layout paint;
+  contain: layout;
   isolation: isolate;
   opacity: 1;
 }
@@ -550,7 +550,7 @@
 }
 
 .eight-ball.sinking {
-  z-index: 8;
+  z-index: 12;
   opacity: 0;
   filter: blur(1px);
   transition:
@@ -565,7 +565,7 @@
   top: var(--cue-y);
   width: 1px;
   height: 1px;
-  z-index: 9;
+  z-index: 13;
   transform: rotate(var(--cue-angle));
   pointer-events: none;
   animation: cue-fade 760ms ease-out both;

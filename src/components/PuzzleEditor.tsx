@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { DIRECTIONS, isInside, isPocketCoord } from "../game/directions";
+import { isInside, isPocketCoord, launchDirectionForStart } from "../game/directions";
+import { addInventoryItem, countedInventory, inventoryItemClass, inventoryItemKey, inventoryItemLabel, removeInventoryItem } from "../game/inventory";
 import { serializePuzzle } from "../game/puzzleExport";
 import { validatePuzzle } from "../game/puzzleValidation";
-import type { Coord, Direction, FixedPiece, PieceKind, PuzzleConfig, ReflectorOrientation } from "../game/types";
+import type { Coord, Direction, FixedPiece, InventoryItem, PuzzleConfig, ReflectorOrientation } from "../game/types";
+import { BackpackIcon } from "./Inventory";
 
 type EditorTool = "start" | "pocket" | "fixedRail" | "glassRail" | "solidBlock" | "glassBlock" | "oneWayGate" | "erase";
 type DraggableEditorObject = { kind: "start"; coord: Coord } | { kind: "pocket"; coord: Coord } | { kind: "fixed"; piece: FixedPiece };
@@ -76,7 +78,7 @@ function canMoveObject(puzzle: PuzzleConfig, object: DraggableEditorObject, targ
 
 function moveObject(puzzle: PuzzleConfig, object: DraggableEditorObject, target: Coord): PuzzleConfig {
   if (!canMoveObject(puzzle, object, target)) return puzzle;
-  if (object.kind === "start") return { ...puzzle, start: target };
+  if (object.kind === "start") return { ...puzzle, start: target, launchDirection: launchDirectionForStart(target, puzzle.size) };
   if (object.kind === "pocket") return { ...puzzle, pocket: target };
   return {
     ...puzzle,
@@ -91,6 +93,7 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
   const [dragging, setDragging] = useState<EditorDragState | undefined>();
   const [suppressClickKey, setSuppressClickKey] = useState<string | undefined>();
   const errors = useMemo(() => validatePuzzle(puzzle), [puzzle]);
+  const currentInventoryItem = useMemo(() => editorToolInventoryItem(tool, railShape, gatePassDirection), [tool, railShape, gatePassDirection]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -127,6 +130,7 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
       ...puzzle,
       size: clamped,
       start: { row: clamped - 1, col: Math.min(puzzle.start.col, clamped - 1) },
+      launchDirection: launchDirectionForStart({ row: clamped - 1, col: Math.min(puzzle.start.col, clamped - 1) }, clamped),
       pocket: isPocketCoord(puzzle.pocket, clamped) ? puzzle.pocket : { row: -1, col: Math.min(puzzle.pocket.col, clamped - 1) },
       fixedPieces: puzzle.fixedPieces.filter((piece) => isInside(piece.coord, clamped))
     });
@@ -145,7 +149,7 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
     if (!inside) return;
 
     const fixedPieces = puzzle.fixedPieces.filter((piece) => key(piece.coord) !== key(coord));
-    if (tool === "start") return onPuzzleChange({ ...puzzle, start: coord, fixedPieces });
+    if (tool === "start") return onPuzzleChange({ ...puzzle, start: coord, launchDirection: launchDirectionForStart(coord, puzzle.size), fixedPieces });
     if (tool === "pocket") return;
     if (tool === "erase") return onPuzzleChange({ ...puzzle, fixedPieces });
 
@@ -170,6 +174,15 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
     await navigator.clipboard.writeText(serializePuzzle(puzzle));
   }
 
+  function addSelectedToInventory() {
+    if (!currentInventoryItem) return;
+    onPuzzleChange({ ...puzzle, inventory: addInventoryItem(puzzle.inventory, currentInventoryItem) });
+  }
+
+  function removeFromInventory(item: InventoryItem) {
+    onPuzzleChange({ ...puzzle, inventory: removeInventoryItem(puzzle.inventory, item) });
+  }
+
   const cells: Coord[] = [];
   for (let row = -1; row <= puzzle.size; row += 1) {
     for (let col = -1; col <= puzzle.size; col += 1) {
@@ -192,6 +205,15 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
     return "";
   }
 
+  function editorToolInventoryItem(toolName: EditorTool, orientation: ReflectorOrientation, passDirection: Direction): InventoryItem | undefined {
+    if (toolName === "fixedRail") return { kind: orientation };
+    if (toolName === "glassRail") return { kind: orientation === "slash" ? "glassSlash" : "glassBackslash" };
+    if (toolName === "solidBlock") return { kind: "solidBlock" };
+    if (toolName === "glassBlock") return { kind: "glassBlock" };
+    if (toolName === "oneWayGate") return { kind: "oneWayGate", gate: { orientation, passDirection } };
+    return undefined;
+  }
+
   return (
     <section className="editor-shell">
       <div className="editor-controls">
@@ -204,36 +226,15 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
           <input type="number" min={4} max={12} value={puzzle.size} onChange={(event) => updateSize(Number(event.target.value))} />
         </label>
         <label>
-          Launch
-          <select value={puzzle.launchDirection} onChange={(event) => onPuzzleChange({ ...puzzle, launchDirection: event.target.value as PuzzleConfig["launchDirection"] })}>
-            {DIRECTIONS.map((direction) => (
-              <option key={direction} value={direction}>
-                {direction}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Rail (/) Inventory
-          <input
-            type="number"
-            min={0}
-            value={puzzle.inventory.slash}
-            onChange={(event) => onPuzzleChange({ ...puzzle, inventory: { ...puzzle.inventory, slash: Number(event.target.value) } })}
-          />
-        </label>
-        <label>
-          Rail (\) Inventory
-          <input
-            type="number"
-            min={0}
-            value={puzzle.inventory.backslash}
-            onChange={(event) => onPuzzleChange({ ...puzzle, inventory: { ...puzzle.inventory, backslash: Number(event.target.value) } })}
-          />
-        </label>
-        <label>
           Rail Shape
-          <select value={railShape} onChange={(event) => setRailShape(event.target.value as ReflectorOrientation)}>
+          <select
+            value={railShape}
+            onChange={(event) => {
+              const nextShape = event.target.value as ReflectorOrientation;
+              setRailShape(nextShape);
+              setGatePassDirection(nextShape === "slash" ? "E" : "N");
+            }}
+          >
             <option value="slash">/</option>
             <option value="backslash">\</option>
           </select>
@@ -265,29 +266,47 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
         ))}
       </div>
 
-      <div className="editor-board expanded-editor-board" style={{ gridTemplateColumns: `repeat(${puzzle.size + 2}, 1fr)` }}>
-        {cells.map((coord) => {
-          const fixed = puzzle.fixedPieces.find((piece) => key(piece.coord) === key(coord));
-          const isStart = key(coord) === key(puzzle.start);
-          const isPocket = key(coord) === key(puzzle.pocket);
-          const inside = isInside(coord, puzzle.size);
-          const pocketSlot = isPocketCoord(coord, puzzle.size);
-          const draggable = tool === "erase" ? undefined : draggableAt(puzzle, coord);
-          return (
-            <button
-              key={key(coord)}
-              className={`editor-cell ${inside ? "play-cell" : "pocket-slot"} ${isStart ? "start" : ""} ${isPocket ? "pocket" : ""}`}
-              data-row={coord.row}
-              data-col={coord.col}
-              style={{ gridRow: coord.row + 2, gridColumn: coord.col + 2 }}
-              onClick={() => applyTool(coord)}
-              onPointerDown={(event) => startDrag(draggable, event)}
-              disabled={!inside && !pocketSlot}
-            >
-              {inside ? (isStart ? "S" : fixed ? <span className={editorPieceClass(fixed)} /> : "") : isPocket ? "P" : ""}
-            </button>
-          );
-        })}
+      <div className="editor-workbench">
+        <section className="editor-backpack backpack-inventory" aria-label="Puzzle inventory">
+          <button className="backpack-header" onClick={addSelectedToInventory} disabled={!currentInventoryItem} aria-label="Add selected piece to player inventory">
+            <BackpackIcon />
+          </button>
+          <div className="backpack-items">
+            {countedInventory(puzzle.inventory).map(({ item, count }) => (
+              <button key={inventoryItemKey(item)} onClick={() => removeFromInventory(item)} aria-label={`Remove ${inventoryItemLabel(item)} from inventory`}>
+                <span className="backpack-piece" aria-hidden="true">
+                  <span className={inventoryItemClass(item)} />
+                </span>
+                {count > 1 && <strong>x{count}</strong>}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <div className="editor-board expanded-editor-board" style={{ gridTemplateColumns: `repeat(${puzzle.size + 2}, 1fr)` }}>
+          {cells.map((coord) => {
+            const fixed = puzzle.fixedPieces.find((piece) => key(piece.coord) === key(coord));
+            const isStart = key(coord) === key(puzzle.start);
+            const isPocket = key(coord) === key(puzzle.pocket);
+            const inside = isInside(coord, puzzle.size);
+            const pocketSlot = isPocketCoord(coord, puzzle.size);
+            const draggable = tool === "erase" ? undefined : draggableAt(puzzle, coord);
+            return (
+              <button
+                key={key(coord)}
+                className={`editor-cell ${inside ? "play-cell" : "pocket-slot"} ${isStart ? "start" : ""} ${isPocket ? "pocket" : ""}`}
+                data-row={coord.row}
+                data-col={coord.col}
+                style={{ gridRow: coord.row + 2, gridColumn: coord.col + 2 }}
+                onClick={() => applyTool(coord)}
+                onPointerDown={(event) => startDrag(draggable, event)}
+                disabled={!inside && !pocketSlot}
+              >
+                {inside ? (isStart ? "S" : fixed ? <span className={editorPieceClass(fixed)} /> : "") : isPocket ? "P" : ""}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {dragging && (

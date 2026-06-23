@@ -89,3 +89,10 @@ export function launchPointsInward(start: Coord, direction: Direction, size: num
   const next = addDirection(start, direction);
   return isInside(start, size) && isInside(next, size);
 }
+
+export function launchDirectionForStart(start: Coord, size: number): Direction {
+  if (start.row === 0) return "S";
+  if (start.row === size - 1) return "N";
+  if (start.col === 0) return "E";
+  return "W";
+}
