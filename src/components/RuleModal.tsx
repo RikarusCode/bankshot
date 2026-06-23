@@ -23,23 +23,8 @@ export function RuleModal({ open, onClose }: RuleModalProps) {
           X
         </button>
         <div className="rules-header">
-          <p className="eyebrow">How to play</p>
-          <h2>Bankshot Rules</h2>
-          <p>Place pieces from your backpack, press Shoot, and guide the 8-ball into the pocket in as few attempts as possible.</p>
-        </div>
-
-        <div className="rules-grid">
-          <section className="rule-card">
-            <h3>Turn Flow</h3>
-            <p>The board is deterministic. The ball moves along grid lanes in the four cardinal directions, with no random physics.</p>
-            <p>Drag or tap backpack pieces onto open table cells. You can move them or drag them back into the backpack before shooting.</p>
-          </section>
-
-          <section className="rule-card">
-            <h3>Pockets</h3>
-            <p>Pockets sit in the rail outside the grid. The ball must enter a pocket directly from the matching row or column.</p>
-            <p>A side pocket on the right, for example, only accepts a ball moving left to right into that rail slot.</p>
-          </section>
+          <h2>How to Play</h2>
+          <p>Place pieces from your backpack to guide the 8-ball into the pocket.</p>
         </div>
 
         <section className="piece-rules">
@@ -50,7 +35,7 @@ export function RuleModal({ open, onClose }: RuleModalProps) {
             </RuleIcon>
             <div>
               <strong>Rail</strong>
-              <p>Turns the ball 90 degrees based on its angle. Rails may be fixed on the table or supplied in the backpack.</p>
+              <p>Turns the ball 90 degrees.</p>
             </div>
           </div>
           <div className="piece-rule">
@@ -59,7 +44,7 @@ export function RuleModal({ open, onClose }: RuleModalProps) {
             </RuleIcon>
             <div>
               <strong>Block</strong>
-              <p>Bounces the ball straight back. Blocks can be fixed or placed if a puzzle includes them in the backpack.</p>
+              <p>Bounces the ball straight back.</p>
             </div>
           </div>
           <div className="piece-rule">
@@ -68,7 +53,7 @@ export function RuleModal({ open, onClose }: RuleModalProps) {
             </RuleIcon>
             <div>
               <strong>Glass piece</strong>
-              <p>Works once during a shot, then disappears for the rest of that shot. Glass resets on the next attempt.</p>
+              <p>Shatters upon impact, bouncing the ball once before disappearing. Glass resets on the next attempt.</p>
             </div>
           </div>
           <div className="piece-rule">

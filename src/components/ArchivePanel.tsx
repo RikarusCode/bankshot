@@ -139,7 +139,7 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
                 <button onClick={() => playEntry(entry)} disabled={entry.status !== "available"}>
                   Play
                 </button>
-                <button onClick={() => void startEdit(entry)}>Edit</button>
+                <button onClick={() => void startEdit(entry)}>View JSON</button>
               </div>
             </article>
           ))}
@@ -168,7 +168,7 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
       {editing && (
         <div className="archive-editor">
           <div className="panel-heading">
-            <h2>View JSON{displayDate(editing.date)}</h2>
+            <h2>Edit {displayDate(editing.date)}</h2>
             <button onClick={() => setEditing(undefined)}>Close</button>
           </div>
           <textarea value={editing.text} onChange={(event) => setEditing({ ...editing, text: event.target.value })} spellCheck={false} placeholder="Paste full puzzle JSON here." />
