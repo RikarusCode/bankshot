@@ -15,10 +15,10 @@ function orientationFor(kind: PieceKind): ReflectorOrientation | null {
 
 function gatePassDirections(orientation: ReflectorOrientation, passDirection: PuzzleConfig["launchDirection"]): PuzzleConfig["launchDirection"][] {
   if (orientation === "slash") {
-    return passDirection === "N" || passDirection === "E" ? ["S", "W"] : ["N", "E"];
+    return passDirection === "N" || passDirection === "E" ? ["N", "E"] : ["S", "W"];
   }
 
-  return passDirection === "N" || passDirection === "W" ? ["S", "E"] : ["N", "W"];
+  return passDirection === "N" || passDirection === "W" ? ["N", "W"] : ["S", "E"];
 }
 
 function mutableStateKey(map: Map<string, RuntimePiece>): string {

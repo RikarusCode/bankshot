@@ -142,7 +142,34 @@ it("supports player-placed blocks from inventory", () => {
 });
 
 it("one-way gates pass from both directions on the green side", () => {
-  const eastSideEntry = simulateShot(
+  const eastboundEntry = simulateShot(
+    {
+      ...basePuzzle,
+      start: { row: 3, col: 0 },
+      launchDirection: "E",
+      pocket: { row: 3, col: 7 },
+      fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
+    },
+    []
+  );
+  const northboundEntry = simulateShot(
+    {
+      ...basePuzzle,
+      start: { row: 6, col: 2 },
+      launchDirection: "N",
+      pocket: { row: -1, col: 2 },
+      fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
+    },
+    []
+  );
+  expect(eastboundEntry.status).toBe("win");
+  expect(northboundEntry.status).toBe("win");
+  expect(eastboundEntry.bounces).toBe(0);
+  expect(northboundEntry.bounces).toBe(0);
+});
+
+it("one-way gates reflect from blocked approaches", () => {
+  const westboundEntry = simulateShot(
     {
       ...basePuzzle,
       start: { row: 3, col: 6 },
@@ -152,46 +179,35 @@ it("one-way gates pass from both directions on the green side", () => {
     },
     []
   );
-  const northSideEntry = simulateShot(
+  const southboundEntry = simulateShot(
     {
       ...basePuzzle,
       start: { row: 0, col: 2 },
       launchDirection: "S",
-      pocket: { row: 7, col: 2 },
-      fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
-    },
-    []
-  );
-  expect(eastSideEntry.status).toBe("win");
-  expect(northSideEntry.status).toBe("win");
-  expect(eastSideEntry.bounces).toBe(0);
-  expect(northSideEntry.bounces).toBe(0);
-});
-
-it("one-way gates reflect from blocked approaches", () => {
-  const westSideEntry = simulateShot(
-    {
-      ...basePuzzle,
-      start: { row: 3, col: 0 },
-      launchDirection: "E",
-      pocket: { row: 3, col: -1 },
-      fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
-    },
-    []
-  );
-  const southSideEntry = simulateShot(
-    {
-      ...basePuzzle,
-      start: { row: 6, col: 2 },
-      launchDirection: "N",
       pocket: { row: 3, col: 7 },
       fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
     },
     []
   );
-  expect(westSideEntry.bounces).toBeGreaterThanOrEqual(1);
-  expect(southSideEntry.bounces).toBeGreaterThanOrEqual(1);
-  expect(southSideEntry.status).toBe("win");
+  expect(westboundEntry.bounces).toBeGreaterThanOrEqual(1);
+  expect(southboundEntry.bounces).toBeGreaterThanOrEqual(1);
+});
+
+it("uses gate settings on player-placed inventory gates", () => {
+  const result = simulateShot(
+    {
+      ...basePuzzle,
+      start: { row: 3, col: 0 },
+      launchDirection: "E",
+      pocket: { row: 3, col: 7 },
+      inventory: [{ kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }],
+      fixedPieces: []
+    },
+    [{ id: "gate", coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
+  );
+
+  expect(result.status).toBe("win");
+  expect(result.bounces).toBe(0);
 });
 
 it("detects loops with current mutable board state", () => {

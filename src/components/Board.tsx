@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { buildBallAnimationSegments, directionDelta, interpolateBallSegment } from "../game/animationPath";
 import { coordKey, pocketEdge } from "../game/directions";
-import { playBounce, playCueStrike, playGlassBreak, playGlassTick, playPocket, playRailBounce, playSolidBounce, startRoll, stopRoll } from "../game/sound";
+import { playBounce, playCueStrike, playGlassBreak, playGlassTick, playPocket, playRailBounce, playSolidBounce } from "../game/sound";
 import type { Coord, FixedPiece, PlayerPiece, PuzzleConfig, SimulationResult } from "../game/types";
 import { Cell } from "./Cell";
 
@@ -79,7 +79,6 @@ export function Board({
 
   useEffect(() => {
     mutedRef.current = muted;
-    if (muted) stopRoll();
   }, [muted]);
 
   function ballMetrics() {
@@ -105,6 +104,7 @@ export function Board({
     const x = offset.x + ((coord.col + 0.5) / puzzle.size) * metrics.width - metrics.ballSize / 2;
     const y = offset.y + ((coord.row + 0.5) / puzzle.size) * metrics.width - metrics.ballSize / 2;
     ball.style.width = `${metrics.ballSize}px`;
+    ball.style.height = `${metrics.ballSize}px`;
     ball.style.opacity = `${opacity}`;
     ball.style.filter = blur > 0 ? `blur(${blur}px)` : "";
     ball.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${spinDegrees}deg) scale(${scale})`;
@@ -155,7 +155,6 @@ export function Board({
       if (animationFrameRef.current !== undefined) window.cancelAnimationFrame(animationFrameRef.current);
       if (cueTimeoutRef.current !== undefined) window.clearTimeout(cueTimeoutRef.current);
       if (sinkTimeoutRef.current !== undefined) window.clearTimeout(sinkTimeoutRef.current);
-      stopRoll();
       setSinking(false);
       setBallTransform(puzzle.start, 0);
       return;
@@ -180,7 +179,6 @@ export function Board({
       if (!segment) {
         const finalCoord = segments[segments.length - 1].to.coord;
         setBallTransform(finalCoord, cumulativeDistance * 210);
-        stopRoll();
         if (shot.result.status === "win") {
           setSinking(true);
           sinkBall(finalCoord, cumulativeDistance * 210);
@@ -228,7 +226,6 @@ export function Board({
 
     cueTimeoutRef.current = window.setTimeout(() => {
       playCueStrike(mutedRef.current);
-      startRoll(mutedRef.current);
       animationFrameRef.current = window.requestAnimationFrame(animate);
     }, CUE_ANIMATION_MS);
 
@@ -236,7 +233,6 @@ export function Board({
       if (animationFrameRef.current !== undefined) window.cancelAnimationFrame(animationFrameRef.current);
       if (cueTimeoutRef.current !== undefined) window.clearTimeout(cueTimeoutRef.current);
       if (sinkTimeoutRef.current !== undefined) window.clearTimeout(sinkTimeoutRef.current);
-      stopRoll();
     };
   }, [shot?.id, boardSize, puzzle.id]);
 
@@ -290,7 +286,7 @@ export function Board({
         <div ref={boardRef} className="board" style={{ gridTemplateColumns: `repeat(${puzzle.size}, 1fr)` }}>
           {cells.map((coord) => {
             const key = coordKey(coord);
-            const playerPiece = playerByCell.get(key);
+            const playerPiece = hiddenGlassKeys.has(key) ? undefined : playerByCell.get(key);
             const fixedPiece = hiddenGlassKeys.has(key) ? undefined : fixedByCell.get(key);
             return (
               <Cell

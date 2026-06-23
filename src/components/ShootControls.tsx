@@ -16,7 +16,7 @@ export function ShootControls({ animating, disabled, onShoot, onClear, onResetBa
         Clear Table
       </button>
       <button onClick={onResetBall}>
-        Reset Ball
+        Reset Shot
       </button>
     </section>
   );

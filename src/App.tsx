@@ -16,6 +16,7 @@ import { inventoryItemClass, inventoryItemKey, remainingInventory } from "./game
 import { validatePlayerPieces, isCellAvailable } from "./game/puzzleValidation";
 import { shareText } from "./game/scoring";
 import { simulateShot } from "./game/simulate";
+import { primeAudio } from "./game/sound";
 import { loadDailyProgress, loadStreak, saveDailyProgress, updateStreakOnSolve } from "./game/storage";
 import type { Coord, DailyProgress, InventoryItem, Mode, PlayerPiece, PuzzleConfig, SimulationResult, StreakState } from "./game/types";
 import { sampleCustomPuzzle } from "./puzzles";
@@ -76,6 +77,24 @@ export default function App() {
   const [streak, setStreak] = useState<StreakState>(() => loadStreak());
 
   const puzzle = mode === "daily" ? dailyPuzzle : mode === "archive" ? archivePuzzle : customPuzzle;
+
+  useEffect(() => {
+    if (muted) return;
+    let cancelled = false;
+
+    function warmAudio() {
+      if (cancelled) return;
+      void primeAudio(false);
+    }
+
+    window.addEventListener("pointerdown", warmAudio, { once: true, capture: true });
+    window.addEventListener("keydown", warmAudio, { once: true, capture: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener("pointerdown", warmAudio, { capture: true });
+      window.removeEventListener("keydown", warmAudio, { capture: true });
+    };
+  }, [muted]);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,13 +240,18 @@ export default function App() {
     setSelectedPieceId(undefined);
   }
 
-  function shoot() {
+  async function shoot() {
     if (!puzzle) return;
     if (shootDisabled) return;
+    setLocked(true);
+    try {
+      await primeAudio(muted);
+    } catch {
+      // If the browser rejects audio unlock, keep gameplay responsive.
+    }
     const nextResult = simulateShot(puzzle, playerPieces);
     setShot({ id: Date.now(), result: nextResult });
     setRevealedResult(undefined);
-    setLocked(true);
     setSelectedPlacement(undefined);
     setSelectedPieceId(undefined);
 

@@ -1,13 +1,68 @@
 let audioContext: AudioContext | undefined;
-let rollNodes: { source: AudioBufferSourceNode; gain: GainNode } | undefined;
+let masterOutput: GainNode | undefined;
+let audioPrimed = false;
+let primePromise: Promise<void> | undefined;
 const lastPlayedAt = new Map<string, number>();
-const MASTER_GAIN = 1.75;
+const MASTER_GAIN = 2.25;
+const FIRST_AUDIO_WARMUP_MS = 90;
 
 function getAudioContext(): AudioContext | undefined {
   if (typeof window === "undefined") return undefined;
   audioContext ??= new AudioContext();
-  if (audioContext.state === "suspended") void audioContext.resume();
   return audioContext;
+}
+
+async function resumeAudioContext(context: AudioContext): Promise<void> {
+  if (context.state === "suspended") {
+    await context.resume();
+  }
+}
+
+function getOutputNode(): AudioNode | undefined {
+  const context = getAudioContext();
+  if (!context) return undefined;
+  if (masterOutput) return masterOutput;
+
+  const compressor = context.createDynamicsCompressor();
+  compressor.threshold.value = -18;
+  compressor.knee.value = 18;
+  compressor.ratio.value = 4;
+  compressor.attack.value = 0.004;
+  compressor.release.value = 0.16;
+
+  masterOutput = context.createGain();
+  masterOutput.gain.value = 0.92;
+  masterOutput.connect(compressor);
+  compressor.connect(context.destination);
+  return masterOutput;
+}
+
+export async function primeAudio(muted: boolean): Promise<void> {
+  if (muted) return;
+  if (audioPrimed) return;
+  if (primePromise) return primePromise;
+  primePromise = primeAudioOnce().finally(() => {
+    primePromise = undefined;
+  });
+  return primePromise;
+}
+
+async function primeAudioOnce(): Promise<void> {
+  const context = getAudioContext();
+  if (!context) return;
+  await resumeAudioContext(context);
+  const gain = context.createGain();
+  const oscillator = context.createOscillator();
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  oscillator.frequency.setValueAtTime(40, context.currentTime);
+  oscillator.connect(gain);
+  const output = getOutputNode();
+  if (!output) return;
+  gain.connect(output);
+  oscillator.start();
+  oscillator.stop(context.currentTime + 0.025);
+  await new Promise((resolve) => window.setTimeout(resolve, FIRST_AUDIO_WARMUP_MS));
+  audioPrimed = true;
 }
 
 function envelope(gain: GainNode, start: number, peak: number, duration: number) {
@@ -20,6 +75,7 @@ function envelope(gain: GainNode, start: number, peak: number, duration: number)
 function canPlay(key: string, cooldown = 0.045): boolean {
   const context = getAudioContext();
   if (!context) return false;
+  if (context.state !== "running") return false;
   const last = lastPlayedAt.get(key) ?? -Infinity;
   if (context.currentTime - last < cooldown) return false;
   lastPlayedAt.set(key, context.currentTime);
@@ -34,7 +90,7 @@ function tone(frequency: number, duration: number, peak = 0.12, type: Oscillator
   oscillator.type = type;
   oscillator.frequency.setValueAtTime(frequency, context.currentTime);
   oscillator.connect(gain);
-  gain.connect(destination ?? context.destination);
+  gain.connect(destination ?? getOutputNode() ?? context.destination);
   envelope(gain, context.currentTime, peak * MASTER_GAIN, duration);
   oscillator.start();
   oscillator.stop(context.currentTime + duration + 0.04);
@@ -64,7 +120,9 @@ function noiseHit(duration: number, peak: number, filterFrequency: number, filte
   filter.frequency.value = filterFrequency;
   source.connect(filter);
   filter.connect(gain);
-  gain.connect(context.destination);
+  const output = getOutputNode();
+  if (!output) return;
+  gain.connect(output);
   envelope(gain, context.currentTime, peak * MASTER_GAIN, duration);
   source.start();
   source.stop(context.currentTime + duration + 0.04);
@@ -77,81 +135,52 @@ function softChime(baseFrequency: number, muted: boolean) {
   const filter = context.createBiquadFilter();
   filter.type = "lowpass";
   filter.frequency.value = 2600;
-  filter.connect(context.destination);
-  tone(baseFrequency, 0.16, 0.035, "sine", filter);
-  tone(baseFrequency * 1.5, 0.12, 0.018, "triangle", filter);
+  const output = getOutputNode();
+  if (!output) return;
+  filter.connect(output);
+  tone(baseFrequency, 0.15, 0.024, "sine", filter);
+  tone(baseFrequency * 1.5, 0.11, 0.012, "triangle", filter);
 }
 
 export function playBounce(muted: boolean) {
   if (muted || !canPlay("bumper")) return;
-  noiseHit(0.042, 0.046, 980, "bandpass");
-  tone(128, 0.05, 0.02, "sine");
+  noiseHit(0.048, 0.074, 1060, "bandpass");
+  tone(126, 0.06, 0.034, "triangle");
 }
 
 export function playCueStrike(muted: boolean) {
   if (muted || !canPlay("cue", 0.12)) return;
-  noiseHit(0.045, 0.062, 1450, "bandpass");
-  tone(104, 0.075, 0.034, "triangle");
+  noiseHit(0.052, 0.086, 1320, "bandpass");
+  tone(102, 0.085, 0.046, "triangle");
 }
 
 export function playSolidBounce(muted: boolean) {
   if (muted || !canPlay("solid")) return;
-  noiseHit(0.052, 0.054, 650, "lowpass");
-  tone(86, 0.07, 0.022, "sine");
+  noiseHit(0.062, 0.088, 620, "lowpass");
+  tone(82, 0.09, 0.044, "sine");
 }
 
 export function playRailBounce(muted: boolean) {
   if (muted || !canPlay("rail")) return;
-  noiseHit(0.046, 0.048, 850, "bandpass");
-  tone(108, 0.055, 0.019, "sine");
+  noiseHit(0.052, 0.078, 900, "bandpass");
+  tone(106, 0.065, 0.034, "triangle");
 }
 
 export function playGlassTick(muted: boolean) {
   if (muted || !canPlay("glass", 0.07)) return;
-  noiseHit(0.034, 0.026, 2100, "highpass");
+  noiseHit(0.032, 0.024, 2200, "highpass");
   softChime(500, muted);
 }
 
 export function playGlassBreak(muted: boolean) {
   if (muted || !canPlay("glass-break", 0.09)) return;
-  noiseHit(0.075, 0.034, 2600, "highpass");
+  noiseHit(0.07, 0.032, 2500, "highpass");
   softChime(620, muted);
 }
 
 export function playPocket(muted: boolean) {
   if (muted || !canPlay("pocket", 0.12)) return;
-  noiseHit(0.18, 0.056, 540, "lowpass");
-  tone(70, 0.3, 0.055, "sine");
-  tone(105, 0.18, 0.022, "triangle");
-}
-
-export function startRoll(muted: boolean) {
-  if (muted || rollNodes) return;
-  const context = getAudioContext();
-  const buffer = noiseBuffer(1.2);
-  if (!context || !buffer) return;
-  const source = context.createBufferSource();
-  const filter = context.createBiquadFilter();
-  const gain = context.createGain();
-  source.buffer = buffer;
-  source.loop = true;
-  filter.type = "bandpass";
-  filter.frequency.value = 165;
-  filter.Q.value = 0.55;
-  gain.gain.value = 0.022;
-  source.connect(filter);
-  filter.connect(gain);
-  gain.connect(context.destination);
-  source.start();
-  rollNodes = { source, gain };
-}
-
-export function stopRoll() {
-  if (!rollNodes || !audioContext) return;
-  const { source, gain } = rollNodes;
-  gain.gain.cancelScheduledValues(audioContext.currentTime);
-  gain.gain.setValueAtTime(gain.gain.value, audioContext.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.08);
-  source.stop(audioContext.currentTime + 0.1);
-  rollNodes = undefined;
+  noiseHit(0.2, 0.084, 500, "lowpass");
+  tone(68, 0.34, 0.078, "sine");
+  tone(104, 0.2, 0.034, "triangle");
 }

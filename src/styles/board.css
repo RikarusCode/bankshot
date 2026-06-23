@@ -491,6 +491,7 @@
   position: absolute;
   display: grid;
   width: min(calc(var(--cell-size) * 0.36), 34px);
+  height: min(calc(var(--cell-size) * 0.36), 34px);
   aspect-ratio: 1;
   place-items: center;
   border-radius: 999px;
@@ -525,7 +526,11 @@
   position: relative;
   display: grid;
   width: 44%;
-  aspect-ratio: 1;
+  height: 44%;
+  min-width: 44%;
+  min-height: 44%;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
   place-items: center;
   border-radius: 999px;
   background: radial-gradient(circle at 36% 30%, #ffffff 0 34%, #f1eee1 72%, #d9d0b7 100%);
