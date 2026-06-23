@@ -7,7 +7,7 @@ export const sampleCustomPuzzle: PuzzleConfig = {
   size: 8,
   start: { row: 7, col: 1 },
   launchDirection: "N",
-  pocket: { row: 7, col: 2 },
+  pocket: { row: 8, col: 2 },
   inventory: { slash: 1, backslash: 1 },
   fixedPieces: [
     { coord: { row: 2, col: 1 }, kind: "glassSlash" },

@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { parsePuzzleJson, serializePuzzle } from "../game/puzzleExport";
 import type { PuzzleConfig } from "../game/types";
-import { sampleCustomPuzzle } from "../puzzles";
 
 type PuzzleImportExportProps = {
   puzzle: PuzzleConfig;
@@ -9,8 +8,13 @@ type PuzzleImportExportProps = {
 };
 
 export function PuzzleImportExport({ puzzle, onImport }: PuzzleImportExportProps) {
-  const [text, setText] = useState(serializePuzzle(sampleCustomPuzzle));
+  const [text, setText] = useState(serializePuzzle(puzzle));
   const [errors, setErrors] = useState<string[]>([]);
+
+  useEffect(() => {
+    setText(serializePuzzle(puzzle));
+    setErrors([]);
+  }, [puzzle]);
 
   function importPuzzle() {
     const parsed = parsePuzzleJson(text);

@@ -9,7 +9,7 @@ const basePuzzle: PuzzleConfig = {
   size: 7,
   start: { row: 6, col: 1 },
   launchDirection: "N",
-  pocket: { row: 6, col: 4 },
+  pocket: { row: 7, col: 4 },
   inventory: { slash: 2, backslash: 2 },
   fixedPieces: [{ coord: { row: 2, col: 4 }, kind: "fixedBackslash" }]
 };
@@ -26,6 +26,22 @@ it("bounces off rails instead of missing when the ball reaches the board edge", 
   const result = simulateShot({ ...basePuzzle, fixedPieces: [] }, []);
   expect(result.status).toBe("loop");
   expect(result.path.some((step) => step.event === "rail")).toBe(true);
+});
+
+it("only enters side pockets from the direct approach", () => {
+  const result = simulateShot(
+    {
+      ...basePuzzle,
+      start: { row: 6, col: 6 },
+      launchDirection: "N",
+      pocket: { row: 3, col: 7 },
+      fixedPieces: []
+    },
+    []
+  );
+  expect(result.status).toBe("loop");
+  expect(result.path.some((step) => step.event === "pocket")).toBe(false);
+  expect(result.path.some((step) => step.event === "rail" && step.target?.row === 3 && step.target.col === 7)).toBe(false);
 });
 
 it("bounces back after entering a solid block cell", () => {
@@ -56,7 +72,7 @@ it("glass blocks bounce back once and disappear for loop state", () => {
       ...basePuzzle,
       start: { row: 3, col: 0 },
       launchDirection: "E",
-      pocket: { row: 0, col: 6 },
+      pocket: { row: -1, col: 6 },
       fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "glassBlock" }]
     },
     []
@@ -72,7 +88,7 @@ it("glass slash reflects once and then is removed", () => {
       ...basePuzzle,
       start: { row: 3, col: 0 },
       launchDirection: "E",
-      pocket: { row: 0, col: 2 },
+      pocket: { row: -1, col: 2 },
       fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "glassSlash" }]
     },
     []
@@ -87,7 +103,7 @@ it("one-way gates pass from both directions on the green side", () => {
       ...basePuzzle,
       start: { row: 3, col: 6 },
       launchDirection: "W",
-      pocket: { row: 3, col: 0 },
+      pocket: { row: 3, col: -1 },
       fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
     },
     []
@@ -97,7 +113,7 @@ it("one-way gates pass from both directions on the green side", () => {
       ...basePuzzle,
       start: { row: 0, col: 2 },
       launchDirection: "S",
-      pocket: { row: 6, col: 2 },
+      pocket: { row: 7, col: 2 },
       fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
     },
     []
@@ -114,7 +130,7 @@ it("one-way gates reflect from blocked approaches", () => {
       ...basePuzzle,
       start: { row: 3, col: 0 },
       launchDirection: "E",
-      pocket: { row: 3, col: 0 },
+      pocket: { row: 3, col: -1 },
       fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
     },
     []
@@ -124,7 +140,7 @@ it("one-way gates reflect from blocked approaches", () => {
       ...basePuzzle,
       start: { row: 6, col: 2 },
       launchDirection: "N",
-      pocket: { row: 3, col: 6 },
+      pocket: { row: 3, col: 7 },
       fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
     },
     []
@@ -140,7 +156,7 @@ it("detects loops with current mutable board state", () => {
       ...basePuzzle,
       start: { row: 6, col: 1 },
       launchDirection: "N",
-      pocket: { row: 0, col: 6 },
+      pocket: { row: -1, col: 6 },
       fixedPieces: []
     },
     []

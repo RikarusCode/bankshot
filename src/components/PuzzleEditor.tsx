@@ -1,13 +1,19 @@
-import { useMemo, useState } from "react";
-import { DIRECTIONS } from "../game/directions";
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { DIRECTIONS, isInside, isPocketCoord } from "../game/directions";
 import { serializePuzzle } from "../game/puzzleExport";
 import { validatePuzzle } from "../game/puzzleValidation";
 import type { Coord, Direction, FixedPiece, PieceKind, PuzzleConfig, ReflectorOrientation } from "../game/types";
-import { sampleCustomPuzzle } from "../puzzles";
 
 type EditorTool = "start" | "pocket" | Exclude<PieceKind, "slash" | "backslash"> | "erase";
+type DraggableEditorObject = { kind: "start"; coord: Coord } | { kind: "pocket"; coord: Coord } | { kind: "fixed"; piece: FixedPiece };
+type EditorDragState = DraggableEditorObject & {
+  x: number;
+  y: number;
+};
 
 type PuzzleEditorProps = {
+  puzzle: PuzzleConfig;
+  onPuzzleChange: (puzzle: PuzzleConfig) => void;
   onPlayPuzzle: (puzzle: PuzzleConfig) => void;
 };
 
@@ -49,37 +55,108 @@ function editorPieceClass(piece: FixedPiece): string {
   return `editor-piece fixed${orientation}`;
 }
 
-export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
-  const [puzzle, setPuzzle] = useState<PuzzleConfig>({ ...sampleCustomPuzzle, id: "my-bankshot-puzzle", title: "My Puzzle" });
+function draggableAt(puzzle: PuzzleConfig, coord: Coord): DraggableEditorObject | undefined {
+  if (key(coord) === key(puzzle.start)) return { kind: "start", coord: puzzle.start };
+  if (key(coord) === key(puzzle.pocket)) return { kind: "pocket", coord: puzzle.pocket };
+  const piece = puzzle.fixedPieces.find((fixed) => key(fixed.coord) === key(coord));
+  return piece ? { kind: "fixed", piece } : undefined;
+}
+
+function canMoveObject(puzzle: PuzzleConfig, object: DraggableEditorObject, target: Coord): boolean {
+  if (object.kind === "pocket") return isPocketCoord(target, puzzle.size);
+  if (!isInside(target, puzzle.size)) return false;
+  if (object.kind !== "start" && key(target) === key(puzzle.start)) return false;
+  return !puzzle.fixedPieces.some((piece) => key(piece.coord) === key(target) && (object.kind !== "fixed" || key(piece.coord) !== key(object.piece.coord)));
+}
+
+function moveObject(puzzle: PuzzleConfig, object: DraggableEditorObject, target: Coord): PuzzleConfig {
+  if (!canMoveObject(puzzle, object, target)) return puzzle;
+  if (object.kind === "start") return { ...puzzle, start: target };
+  if (object.kind === "pocket") return { ...puzzle, pocket: target };
+  return {
+    ...puzzle,
+    fixedPieces: puzzle.fixedPieces.map((piece) => (key(piece.coord) === key(object.piece.coord) ? { ...piece, coord: target } : piece))
+  };
+}
+
+export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEditorProps) {
   const [tool, setTool] = useState<EditorTool>("fixedSlash");
   const [gateOrientation, setGateOrientation] = useState<ReflectorOrientation>("slash");
   const [gatePassDirection, setGatePassDirection] = useState<Direction>("E");
+  const [dragging, setDragging] = useState<EditorDragState | undefined>();
+  const [suppressClickKey, setSuppressClickKey] = useState<string | undefined>();
   const errors = useMemo(() => validatePuzzle(puzzle), [puzzle]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const activeDrag = dragging;
+
+    function handlePointerMove(event: PointerEvent) {
+      setDragging((current) => (current ? { ...current, x: event.clientX, y: event.clientY } : current));
+    }
+
+    function handlePointerUp(event: PointerEvent) {
+      const target = document.elementFromPoint(event.clientX, event.clientY);
+      const cell = target?.closest?.(".editor-cell") as HTMLElement | null;
+      if (cell?.dataset.row && cell.dataset.col) {
+        const coord = { row: Number(cell.dataset.row), col: Number(cell.dataset.col) };
+        onPuzzleChange(moveObject(puzzle, activeDrag, coord));
+      }
+      setSuppressClickKey(key(activeDrag.kind === "fixed" ? activeDrag.piece.coord : activeDrag.coord));
+      setDragging(undefined);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+    window.addEventListener("pointercancel", handlePointerUp, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [dragging, onPuzzleChange, puzzle]);
 
   function updateSize(size: number) {
     const clamped = Math.max(4, Math.min(12, size));
-    setPuzzle((current) => ({
-      ...current,
+    onPuzzleChange({
+      ...puzzle,
       size: clamped,
-      start: { row: clamped - 1, col: Math.min(current.start.col, clamped - 1) },
-      pocket: { row: 0, col: Math.min(current.pocket.col, clamped - 1) },
-      fixedPieces: current.fixedPieces.filter((piece) => piece.coord.row < clamped && piece.coord.col < clamped)
-    }));
+      start: { row: clamped - 1, col: Math.min(puzzle.start.col, clamped - 1) },
+      pocket: isPocketCoord(puzzle.pocket, clamped) ? puzzle.pocket : { row: -1, col: Math.min(puzzle.pocket.col, clamped - 1) },
+      fixedPieces: puzzle.fixedPieces.filter((piece) => isInside(piece.coord, clamped))
+    });
   }
 
   function applyTool(coord: Coord) {
-    setPuzzle((current) => {
-      const fixedPieces = current.fixedPieces.filter((piece) => key(piece.coord) !== key(coord));
-      if (tool === "start") return { ...current, start: coord, fixedPieces };
-      if (tool === "pocket") return { ...current, pocket: coord, fixedPieces };
-      if (tool === "erase") return { ...current, fixedPieces };
-      const nextPiece: FixedPiece = {
-        coord,
-        kind: tool,
-        gate: tool === "oneWayGate" ? { orientation: gateOrientation, passDirection: gatePassDirection } : undefined
-      };
-      return { ...current, fixedPieces: [...fixedPieces, nextPiece] };
-    });
+    if (suppressClickKey === key(coord)) {
+      setSuppressClickKey(undefined);
+      return;
+    }
+
+    const inside = isInside(coord, puzzle.size);
+    const pocketSlot = isPocketCoord(coord, puzzle.size);
+    if (!inside && tool === "pocket" && pocketSlot) return onPuzzleChange({ ...puzzle, pocket: coord });
+    if (!inside && tool === "erase" && key(coord) === key(puzzle.pocket)) return onPuzzleChange({ ...puzzle, pocket: { row: -1, col: 0 } });
+    if (!inside) return;
+
+    const fixedPieces = puzzle.fixedPieces.filter((piece) => key(piece.coord) !== key(coord));
+    if (tool === "start") return onPuzzleChange({ ...puzzle, start: coord, fixedPieces });
+    if (tool === "pocket") return;
+    if (tool === "erase") return onPuzzleChange({ ...puzzle, fixedPieces });
+
+    const nextPiece: FixedPiece = {
+      coord,
+      kind: tool,
+      gate: tool === "oneWayGate" ? { orientation: gateOrientation, passDirection: gatePassDirection } : undefined
+    };
+    onPuzzleChange({ ...puzzle, fixedPieces: [...fixedPieces, nextPiece] });
+  }
+
+  function startDrag(object: DraggableEditorObject | undefined, event: ReactPointerEvent) {
+    if (!object) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setDragging({ ...object, x: event.clientX, y: event.clientY });
   }
 
   async function copyJson() {
@@ -87,8 +164,25 @@ export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
   }
 
   const cells: Coord[] = [];
-  for (let row = 0; row < puzzle.size; row += 1) {
-    for (let col = 0; col < puzzle.size; col += 1) cells.push({ row, col });
+  for (let row = -1; row <= puzzle.size; row += 1) {
+    for (let col = -1; col <= puzzle.size; col += 1) {
+      const coord = { row, col };
+      if (isInside(coord, puzzle.size) || isPocketCoord(coord, puzzle.size)) cells.push(coord);
+    }
+  }
+
+  function dragPreviewClass(): string {
+    if (!dragging) return "";
+    if (dragging.kind === "start") return "editor-drag-marker start";
+    if (dragging.kind === "pocket") return "editor-drag-marker pocket";
+    return editorPieceClass(dragging.piece);
+  }
+
+  function dragPreviewLabel(): string {
+    if (!dragging) return "";
+    if (dragging.kind === "start") return "S";
+    if (dragging.kind === "pocket") return "P";
+    return "";
   }
 
   return (
@@ -96,7 +190,7 @@ export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
       <div className="editor-controls">
         <label>
           Title
-          <input value={puzzle.title ?? ""} onChange={(event) => setPuzzle({ ...puzzle, title: event.target.value })} />
+          <input value={puzzle.title ?? ""} onChange={(event) => onPuzzleChange({ ...puzzle, title: event.target.value })} />
         </label>
         <label>
           Size
@@ -104,7 +198,7 @@ export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
         </label>
         <label>
           Launch
-          <select value={puzzle.launchDirection} onChange={(event) => setPuzzle({ ...puzzle, launchDirection: event.target.value as PuzzleConfig["launchDirection"] })}>
+          <select value={puzzle.launchDirection} onChange={(event) => onPuzzleChange({ ...puzzle, launchDirection: event.target.value as PuzzleConfig["launchDirection"] })}>
             {DIRECTIONS.map((direction) => (
               <option key={direction} value={direction}>
                 {direction}
@@ -118,7 +212,7 @@ export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
             type="number"
             min={0}
             value={puzzle.inventory.slash}
-            onChange={(event) => setPuzzle({ ...puzzle, inventory: { ...puzzle.inventory, slash: Number(event.target.value) } })}
+            onChange={(event) => onPuzzleChange({ ...puzzle, inventory: { ...puzzle.inventory, slash: Number(event.target.value) } })}
           />
         </label>
         <label>
@@ -127,7 +221,7 @@ export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
             type="number"
             min={0}
             value={puzzle.inventory.backslash}
-            onChange={(event) => setPuzzle({ ...puzzle, inventory: { ...puzzle.inventory, backslash: Number(event.target.value) } })}
+            onChange={(event) => onPuzzleChange({ ...puzzle, inventory: { ...puzzle.inventory, backslash: Number(event.target.value) } })}
           />
         </label>
         <label>
@@ -164,18 +258,36 @@ export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
         ))}
       </div>
 
-      <div className="editor-board" style={{ gridTemplateColumns: `repeat(${puzzle.size}, 1fr)` }}>
+      <div className="editor-board expanded-editor-board" style={{ gridTemplateColumns: `repeat(${puzzle.size + 2}, 1fr)` }}>
         {cells.map((coord) => {
           const fixed = puzzle.fixedPieces.find((piece) => key(piece.coord) === key(coord));
           const isStart = key(coord) === key(puzzle.start);
           const isPocket = key(coord) === key(puzzle.pocket);
+          const inside = isInside(coord, puzzle.size);
+          const pocketSlot = isPocketCoord(coord, puzzle.size);
+          const draggable = tool === "erase" ? undefined : draggableAt(puzzle, coord);
           return (
-            <button key={key(coord)} className={`editor-cell ${isStart ? "start" : ""} ${isPocket ? "pocket" : ""}`} onClick={() => applyTool(coord)}>
-              {isStart ? "S" : isPocket ? "P" : fixed ? <span className={editorPieceClass(fixed)} /> : ""}
+            <button
+              key={key(coord)}
+              className={`editor-cell ${inside ? "play-cell" : "pocket-slot"} ${isStart ? "start" : ""} ${isPocket ? "pocket" : ""}`}
+              data-row={coord.row}
+              data-col={coord.col}
+              style={{ gridRow: coord.row + 2, gridColumn: coord.col + 2 }}
+              onClick={() => applyTool(coord)}
+              onPointerDown={(event) => startDrag(draggable, event)}
+              disabled={!inside && !pocketSlot}
+            >
+              {inside ? (isStart ? "S" : fixed ? <span className={editorPieceClass(fixed)} /> : "") : isPocket ? "P" : ""}
             </button>
           );
         })}
       </div>
+
+      {dragging && (
+        <div className="editor-drag-preview" style={{ transform: `translate3d(${dragging.x - 26}px, ${dragging.y - 26}px, 0)` }}>
+          <span className={dragPreviewClass()}>{dragPreviewLabel()}</span>
+        </div>
+      )}
 
       {errors.length > 0 && (
         <ul className="errors">
@@ -186,9 +298,8 @@ export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
       )}
 
       <div className="editor-actions">
-        <button onClick={copyJson}>
-          Copy JSON
-        </button>
+        <button onClick={() => onPuzzleChange({ ...puzzle, fixedPieces: [] })}>Clear Board</button>
+        <button onClick={copyJson}>Copy JSON</button>
         <button className="primary" disabled={errors.length > 0} onClick={() => onPlayPuzzle(puzzle)}>
           Play Puzzle
         </button>

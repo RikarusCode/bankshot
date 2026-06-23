@@ -82,17 +82,17 @@ export function simulateShot(puzzle: PuzzleConfig, playerPieces: PlayerPiece[]):
     seen.set(stateKey, visits + 1);
 
     const next = addDirection(position, direction);
+    if (sameCoord(next, puzzle.pocket)) {
+      position = next;
+      path.push({ position: next, direction, event: "pocket" });
+      return { status: "win", path, bounces };
+    }
+
     if (!isInside(next, puzzle.size)) {
       direction = bounceOffWall(position, direction, puzzle.size);
       bounces += 1;
       path.push({ position, direction, event: "rail", target: next });
       continue;
-    }
-
-    if (sameCoord(next, puzzle.pocket)) {
-      position = next;
-      path.push({ position: next, direction, event: "pocket" });
-      return { status: "win", path, bounces };
     }
 
     const piece = pieces.get(coordKey(next));

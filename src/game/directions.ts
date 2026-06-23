@@ -31,6 +31,21 @@ export function isEdge(coord: Coord, size: number): boolean {
   return isInside(coord, size) && (coord.row === 0 || coord.col === 0 || coord.row === size - 1 || coord.col === size - 1);
 }
 
+export function isPocketCoord(coord: Coord, size: number): boolean {
+  const onTopOrBottom = (coord.row === -1 || coord.row === size) && coord.col >= 0 && coord.col < size;
+  const onLeftOrRight = (coord.col === -1 || coord.col === size) && coord.row >= 0 && coord.row < size;
+  return onTopOrBottom || onLeftOrRight;
+}
+
+export function pocketEdge(coord: Coord, size: number): "top" | "right" | "bottom" | "left" | undefined {
+  if (!isPocketCoord(coord, size)) return undefined;
+  if (coord.row === -1) return "top";
+  if (coord.row === size) return "bottom";
+  if (coord.col === -1) return "left";
+  if (coord.col === size) return "right";
+  return undefined;
+}
+
 export function opposite(direction: Direction): Direction {
   switch (direction) {
     case "N":

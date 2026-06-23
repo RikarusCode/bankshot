@@ -59,6 +59,7 @@ export default function App() {
   const [dailyStatus, setDailyStatus] = useState<"loading" | "ready" | "missing" | "error">("loading");
   const [dailyMessage, setDailyMessage] = useState("");
   const [customPuzzle, setCustomPuzzle] = useState<PuzzleConfig>(sampleCustomPuzzle);
+  const [editorPuzzle, setEditorPuzzle] = useState<PuzzleConfig>({ ...sampleCustomPuzzle, id: "my-bankshot-puzzle", title: "My Puzzle" });
   const [archivePuzzle, setArchivePuzzle] = useState<PuzzleConfig | undefined>();
   const [archiveDate, setArchiveDate] = useState<string | undefined>();
   const [playerPieces, setPlayerPieces] = useState<PlayerPiece[]>([]);
@@ -274,6 +275,11 @@ export default function App() {
     setMode("custom");
   }
 
+  function playEditorPuzzle(nextPuzzle: PuzzleConfig) {
+    setEditorPuzzle(nextPuzzle);
+    importCustomPuzzle(nextPuzzle);
+  }
+
   function playArchivePuzzle(nextPuzzle: PuzzleConfig, date: string) {
     setArchivePuzzle(nextPuzzle);
     setArchiveDate(date);
@@ -302,7 +308,7 @@ export default function App() {
       <ModeTabs mode={mode} onModeChange={setMode} />
 
       {mode === "editor" ? (
-        <PuzzleEditor onPlayPuzzle={importCustomPuzzle} />
+        <PuzzleEditor puzzle={editorPuzzle} onPuzzleChange={setEditorPuzzle} onPlayPuzzle={playEditorPuzzle} />
       ) : mode === "daily" && !puzzle ? (
         <section className="empty-state">
           <h2>{dailyStatus === "loading" ? "Loading today's Bankshot..." : "No daily puzzle scheduled"}</h2>

@@ -10,7 +10,7 @@ describe("puzzle validation", () => {
     size: 7,
     start: { row: 6, col: 1 },
     launchDirection: "N",
-    pocket: { row: 0, col: 4 },
+    pocket: { row: -1, col: 4 },
     inventory: { slash: 1, backslash: 1 },
     fixedPieces: [{ coord: { row: 3, col: 5 }, kind: "fixedSlash" }]
   };

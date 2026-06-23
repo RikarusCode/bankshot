@@ -1,4 +1,4 @@
-import { coordKey, isEdge, isInside, launchPointsInward, sameCoord } from "./directions";
+import { coordKey, isEdge, isInside, isPocketCoord, launchPointsInward } from "./directions";
 import type { Coord, Direction, PieceKind, PlayerPiece, PuzzleConfig, ReflectorOrientation } from "./types";
 
 const directions: Direction[] = ["N", "E", "S", "W"];
@@ -31,8 +31,7 @@ export function validatePuzzle(puzzle: PuzzleConfig): string[] {
   if (errors.length > 0) return errors;
 
   if (!isEdge(puzzle.start, puzzle.size)) errors.push("Start must be on an edge cell.");
-  if (!isEdge(puzzle.pocket, puzzle.size)) errors.push("Pocket must be on an edge cell.");
-  if (sameCoord(puzzle.start, puzzle.pocket)) errors.push("Start and pocket must be different cells.");
+  if (!isPocketCoord(puzzle.pocket, puzzle.size)) errors.push("Pocket must be outside the board on a non-corner rail slot.");
   if (!launchPointsInward(puzzle.start, puzzle.launchDirection, puzzle.size)) errors.push("Launch direction must point into the board.");
   if (puzzle.inventory.slash < 0 || puzzle.inventory.backslash < 0) errors.push("Inventory counts cannot be negative.");
 

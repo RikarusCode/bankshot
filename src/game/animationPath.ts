@@ -68,10 +68,10 @@ function contactPoint(position: Coord, incoming: Direction): Coord {
 }
 
 function pocketMouthPoint(position: Coord, size: number): Coord {
-  if (position.row === 0) return { row: -0.06, col: position.col };
-  if (position.row === size - 1) return { row: size - 0.94, col: position.col };
-  if (position.col === 0) return { row: position.row, col: -0.06 };
-  if (position.col === size - 1) return { row: position.row, col: size - 0.94 };
+  if (position.row < 0) return { row: -0.28, col: position.col };
+  if (position.row >= size) return { row: size - 0.72, col: position.col };
+  if (position.col < 0) return { row: position.row, col: -0.28 };
+  if (position.col >= size) return { row: position.row, col: size - 0.72 };
   return position;
 }
 

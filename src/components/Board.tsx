@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { buildBallAnimationSegments, directionDelta, interpolateBallSegment } from "../game/animationPath";
-import { coordKey, sameCoord } from "../game/directions";
+import { coordKey, pocketEdge } from "../game/directions";
 import { isCellAvailable } from "../game/puzzleValidation";
 import { playBounce, playCueStrike, playGlassBreak, playGlassTick, playPocket, playRailBounce, playSolidBounce, startRoll, stopRoll } from "../game/sound";
 import type { Coord, FixedPiece, PlayerPiece, PuzzleConfig, SimulationResult } from "../game/types";
@@ -24,10 +24,10 @@ type BoardProps = {
 };
 
 function pocketDropPoint(position: Coord, size: number): Coord {
-  if (position.row < 0) return { row: -0.32, col: position.col };
-  if (position.row > size - 1) return { row: size - 0.68, col: position.col };
-  if (position.col < 0) return { row: position.row, col: -0.32 };
-  if (position.col > size - 1) return { row: position.row, col: size - 0.68 };
+  if (position.row < 0) return { row: -0.5, col: position.col };
+  if (position.row >= size) return { row: size - 0.5, col: position.col };
+  if (position.col < 0) return { row: position.row, col: -0.5 };
+  if (position.col >= size) return { row: position.row, col: size - 0.5 };
   return position;
 }
 
@@ -241,16 +241,7 @@ export function Board({
     };
   }, [shot?.id, boardSize, puzzle.id]);
 
-  function pocketEdge(coord: Coord): "top" | "right" | "bottom" | "left" | undefined {
-    if (!sameCoord(coord, puzzle.pocket)) return undefined;
-    if (coord.row === 0) return "top";
-    if (coord.row === puzzle.size - 1) return "bottom";
-    if (coord.col === 0) return "left";
-    if (coord.col === puzzle.size - 1) return "right";
-    return undefined;
-  }
-
-  const currentPocketEdge = pocketEdge(puzzle.pocket) ?? "bottom";
+  const currentPocketEdge = pocketEdge(puzzle.pocket, puzzle.size) ?? "bottom";
   const pocketOffsetPixels =
     currentPocketEdge === "top" || currentPocketEdge === "bottom"
       ? ((puzzle.pocket.col + 0.5) / puzzle.size) * boardSize
@@ -311,8 +302,7 @@ export function Board({
                 coord={coord}
                 fixedPiece={fixedPiece}
                 playerPiece={playerPiece}
-                isPocket={sameCoord(coord, puzzle.pocket)}
-                pocketEdge={pocketEdge(coord)}
+                isPocket={false}
                 isAvailable={available}
                 selected={Boolean(playerPiece && playerPiece.id === selectedPieceId)}
                 onClick={() => onCellClick(coord)}
