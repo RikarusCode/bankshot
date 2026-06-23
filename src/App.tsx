@@ -10,14 +10,14 @@ import { RuleModal } from "./components/RuleModal";
 import { ShareButton } from "./components/ShareButton";
 import { ShootControls } from "./components/ShootControls";
 import { StatsBar } from "./components/StatsBar";
-import { fetchDailyPuzzle } from "./game/archiveApi";
+import { fetchDailyPuzzle, fetchServerProgress, saveServerSolve } from "./game/archiveApi";
 import { coordKey } from "./game/directions";
 import { inventoryItemClass, inventoryItemKey, remainingInventory } from "./game/inventory";
 import { validatePlayerPieces, isCellAvailable } from "./game/puzzleValidation";
 import { shareText } from "./game/scoring";
 import { simulateShot } from "./game/simulate";
 import { primeAudio } from "./game/sound";
-import { loadDailyProgress, loadStreak, saveDailyProgress, updateStreakOnSolve } from "./game/storage";
+import { loadDailyProgress, loadStreak, saveDailyProgress, saveStreak, updateStreakOnSolve } from "./game/storage";
 import type { Coord, DailyProgress, InventoryItem, Mode, PlayerPiece, PuzzleConfig, SimulationResult, StreakState } from "./game/types";
 import { sampleCustomPuzzle } from "./puzzles";
 
@@ -75,6 +75,7 @@ export default function App() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress | undefined>();
   const [streak, setStreak] = useState<StreakState>(() => loadStreak());
+  const [activeDailyAttempt, setActiveDailyAttempt] = useState<number | undefined>();
 
   const puzzle = mode === "daily" ? dailyPuzzle : mode === "archive" ? archivePuzzle : customPuzzle;
 
@@ -106,9 +107,27 @@ export default function App() {
       if (cancelled) return;
       if (result.data) {
         const nextPuzzle = result.data.puzzle;
+        const nextDailyProgress = loadDailyProgress(nextPuzzle.id, nextPuzzle.date ?? result.data.date);
         setDailyPuzzle(nextPuzzle);
-        setDailyProgress(loadDailyProgress(nextPuzzle.id, nextPuzzle.date ?? result.data.date));
+        setDailyProgress(nextDailyProgress);
         setDailyStatus("ready");
+        const progressResult = await fetchServerProgress();
+        if (cancelled) return;
+        if (progressResult.data) {
+          setStreak(progressResult.data.streak);
+          saveStreak(progressResult.data.streak);
+          if (progressResult.data.solvedToday) {
+            const attempts = progressResult.data.todayAttempts ?? nextDailyProgress.solvedAttempts ?? nextDailyProgress.attempts;
+            const syncedProgress: DailyProgress = {
+              ...nextDailyProgress,
+              attempts: Math.max(nextDailyProgress.attempts, attempts),
+              solved: true,
+              solvedAttempts: attempts
+            };
+            setDailyProgress(syncedProgress);
+            saveDailyProgress(syncedProgress);
+          }
+        }
       } else {
         setDailyPuzzle(undefined);
         setDailyProgress(undefined);
@@ -130,6 +149,7 @@ export default function App() {
     setShot(undefined);
     setRevealedResult(undefined);
     setLocked(false);
+    setActiveDailyAttempt(undefined);
   }, [puzzle?.id, mode]);
 
   const validationErrors = useMemo(() => (puzzle ? validatePlayerPieces(puzzle, playerPieces) : []), [puzzle, playerPieces]);
@@ -256,11 +276,13 @@ export default function App() {
     setSelectedPieceId(undefined);
 
     if (mode === "daily" && dailyProgress && !dailyProgress.solved) {
+      const attemptNumber = dailyProgress.attempts + 1;
       const nextProgress: DailyProgress = {
         ...dailyProgress,
-        attempts: dailyProgress.attempts + 1,
+        attempts: attemptNumber,
         shotHistory: dailyProgress.shotHistory
       };
+      setActiveDailyAttempt(attemptNumber);
       setDailyProgress(nextProgress);
       saveDailyProgress(nextProgress);
     }
@@ -269,6 +291,7 @@ export default function App() {
   function stopShot() {
     setLocked(false);
     setShot(undefined);
+    setActiveDailyAttempt(undefined);
   }
 
   function resetBall() {
@@ -288,15 +311,31 @@ export default function App() {
     setRevealedResult(result);
 
     if (mode === "daily" && dailyProgress && !dailyProgress.solved) {
+      const completedAttempts = activeDailyAttempt ?? dailyProgress.attempts;
       const nextProgress: DailyProgress = {
         ...dailyProgress,
+        attempts: Math.max(dailyProgress.attempts, completedAttempts),
         solved: result.status === "win",
-        solvedAttempts: result.status === "win" ? dailyProgress.attempts : dailyProgress.solvedAttempts,
+        solvedAttempts: result.status === "win" ? completedAttempts : dailyProgress.solvedAttempts,
         shotHistory: [...dailyProgress.shotHistory, result.status]
       };
       setDailyProgress(nextProgress);
       saveDailyProgress(nextProgress);
-      if (result.status === "win") setStreak(updateStreakOnSolve(nextProgress.date));
+      setActiveDailyAttempt(undefined);
+      if (result.status === "win" && dailyPuzzle) {
+        const localFallback = updateStreakOnSolve(nextProgress.date);
+        setStreak(localFallback);
+        void saveServerSolve({
+          date: nextProgress.date,
+          puzzleId: dailyPuzzle.id,
+          puzzleNumber: dailyPuzzle.number,
+          attempts: completedAttempts
+        }).then((progressResult) => {
+          if (!progressResult.data) return;
+          setStreak(progressResult.data.streak);
+          saveStreak(progressResult.data.streak);
+        });
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import type { ArchiveEntry, PuzzleConfig } from "./types";
+import type { ArchiveEntry, PuzzleConfig, ServerProgress } from "./types";
 
 type ApiResult<T> = {
   data?: T;
@@ -24,6 +24,24 @@ async function readJson<T>(response: Response): Promise<ApiResult<T>> {
 
 export async function fetchDailyPuzzle(): Promise<ApiResult<{ date: string; puzzle: PuzzleConfig }>> {
   const response = await fetch("/api/daily", { headers: { Accept: "application/json" } });
+  return readJson(response);
+}
+
+export async function fetchServerProgress(): Promise<ApiResult<ServerProgress>> {
+  const response = await fetch("/api/progress", {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" }
+  });
+  return readJson(response);
+}
+
+export async function saveServerSolve(input: { date: string; puzzleId: string; puzzleNumber?: number; attempts: number }): Promise<ApiResult<ServerProgress>> {
+  const response = await fetch("/api/progress/solve", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input)
+  });
   return readJson(response);
 }
 

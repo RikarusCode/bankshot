@@ -9,3 +9,9 @@ BANKSHOT_TIME_ZONE = "America/Los_Angeles"
 binding = "PUZZLES_KV"
 id = "d61736bb768c4bc8ae7e5b2d0f475b41"
 preview_id = "d61736bb768c4bc8ae7e5b2d0f475b41"
+
+# Add this binding after creating the D1 database:
+[[d1_databases]]
+binding = "bankshot_prod"
+database_name = "bankshot-prod"
+database_id = "84b72537-1d82-483a-a1bf-a360ca5fe513"

@@ -107,3 +107,12 @@ export type StreakState = {
   current: number;
   lastSolvedDate?: string;
 };
+
+export type ServerProgress = {
+  today: string;
+  deviceReady: boolean;
+  solvedDates: string[];
+  solvedToday: boolean;
+  todayAttempts?: number;
+  streak: StreakState;
+};
