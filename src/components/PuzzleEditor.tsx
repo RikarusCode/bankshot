@@ -22,7 +22,7 @@ type PuzzleEditorProps = {
 const fixedTools: Array<{ tool: EditorTool; label: string }> = [
   { tool: "start", label: "Start" },
   { tool: "pocket", label: "Pocket" },
-  { tool: "fixedRail", label: "Fixed Rail" },
+  { tool: "fixedRail", label: "Rail" },
   { tool: "solidBlock", label: "Block" },
   { tool: "glassBlock", label: "Glass Block" },
   { tool: "glassRail", label: "Glass Rail" },
@@ -214,7 +214,7 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
           </select>
         </label>
         <label>
-          Rail / Inventory
+          Rail (/) Inventory
           <input
             type="number"
             min={0}
@@ -223,7 +223,7 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
           />
         </label>
         <label>
-          Rail \ Inventory
+          Rail (\) Inventory
           <input
             type="number"
             min={0}
@@ -234,8 +234,8 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
         <label>
           Rail Shape
           <select value={railShape} onChange={(event) => setRailShape(event.target.value as ReflectorOrientation)}>
-            <option value="slash">/ rail</option>
-            <option value="backslash">\ rail</option>
+            <option value="slash">/</option>
+            <option value="backslash">\</option>
           </select>
         </label>
         <label>
@@ -254,7 +254,7 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
             )}
           </select>
         </label>
-        <p className="editor-hint">Rail shape controls fixed rails, glass rails, and gates. A gate is green on the two-direction side the ball can pass through.</p>
+        <p className="editor-hint">Rail shape controls rails and gates. A gate is green on the two-direction side the ball can pass through.</p>
       </div>
 
       <div className="tool-palette">
