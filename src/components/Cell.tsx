@@ -1,3 +1,4 @@
+import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Coord, FixedPiece, PieceKind, PlayerPiece } from "../game/types";
 
 type CellProps = {
@@ -9,35 +10,47 @@ type CellProps = {
   isAvailable: boolean;
   selected: boolean;
   onClick: () => void;
-  onDragStart: (piece: PlayerPiece) => void;
-  onDropPiece: (payload: string) => void;
+  onStartDrag: (piece: PlayerPiece, event: ReactPointerEvent) => void;
 };
 
 function pieceLabel(kind: PieceKind): string {
   switch (kind) {
     case "slash":
     case "fixedSlash":
-    case "crackedSlash":
+    case "glassSlash":
       return "";
     case "backslash":
     case "fixedBackslash":
-    case "crackedBackslash":
+    case "glassBackslash":
       return "";
     case "solidBlock":
       return "";
-    case "crackedBlock":
+    case "glassBlock":
       return "";
     case "oneWayGate":
       return "";
   }
 }
 
-function pieceClass(kind: PieceKind): string {
-  const orientation = kind === "slash" || kind === "fixedSlash" || kind === "crackedSlash" ? " slash-wall" : kind === "backslash" || kind === "fixedBackslash" || kind === "crackedBackslash" ? " backslash-wall" : "";
+function gateSideClass(fixedPiece?: FixedPiece): string {
+  if (!fixedPiece?.gate) return " gate-slash gate-pass-ne";
+  const orientationClass = fixedPiece.gate.orientation === "slash" ? "gate-slash" : "gate-backslash";
+  const passDirection = fixedPiece.gate.passDirection;
+  let sideClass = "gate-pass-ne";
+  if (fixedPiece.gate.orientation === "slash") {
+    sideClass = passDirection === "N" || passDirection === "E" ? "gate-pass-ne" : "gate-pass-sw";
+  } else {
+    sideClass = passDirection === "N" || passDirection === "W" ? "gate-pass-nw" : "gate-pass-se";
+  }
+  return ` ${orientationClass} ${sideClass}`;
+}
+
+function pieceClass(kind: PieceKind, fixedPiece?: FixedPiece): string {
+  const orientation = kind === "slash" || kind === "fixedSlash" || kind === "glassSlash" ? " slash-wall" : kind === "backslash" || kind === "fixedBackslash" || kind === "glassBackslash" ? " backslash-wall" : "";
   if (kind === "slash" || kind === "backslash") return `piece player-piece${orientation}`;
-  if (kind.startsWith("cracked")) return `piece fixed-piece cracked${orientation}`;
+  if (kind.startsWith("glass")) return `piece fixed-piece glass${orientation}`;
   if (kind === "solidBlock") return "piece fixed-piece block";
-  if (kind === "oneWayGate") return "piece fixed-piece gate slash-wall";
+  if (kind === "oneWayGate") return `piece fixed-piece gate${gateSideClass(fixedPiece)}`;
   return `piece fixed-piece${orientation}`;
 }
 
@@ -50,8 +63,7 @@ export function Cell({
   isAvailable,
   selected,
   onClick,
-  onDragStart,
-  onDropPiece
+  onStartDrag
 }: CellProps) {
   const kind = playerPiece?.kind ?? fixedPiece?.kind;
 
@@ -64,27 +76,19 @@ export function Cell({
         isAvailable ? "available" : "",
         selected ? "selected" : ""
       ].join(" ")}
+      data-row={coord.row}
+      data-col={coord.col}
       style={{ gridRow: coord.row + 1, gridColumn: coord.col + 1 }}
       onClick={onClick}
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => {
-        event.preventDefault();
-        onDropPiece(event.dataTransfer.getData("text/plain"));
-      }}
       aria-label={`Cell ${coord.row + 1}, ${coord.col + 1}`}
     >
-      {isPocket && <span className="pocket" />}
       {kind && (
         <span
-          className={pieceClass(kind)}
-          draggable={Boolean(playerPiece)}
-          onDragStart={(event) => {
+          className={pieceClass(kind, fixedPiece)}
+          onPointerDown={(event) => {
             if (!playerPiece) return;
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", playerPiece.id);
-            onDragStart(playerPiece);
+            onStartDrag(playerPiece, event);
           }}
-          title={kind}
         >
           {pieceLabel(kind)}
         </span>

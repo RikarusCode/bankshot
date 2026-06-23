@@ -13,9 +13,9 @@ export type PieceKind =
   | "fixedSlash"
   | "fixedBackslash"
   | "solidBlock"
-  | "crackedBlock"
-  | "crackedSlash"
-  | "crackedBackslash"
+  | "glassBlock"
+  | "glassSlash"
+  | "glassBackslash"
   | "oneWayGate";
 
 export type Inventory = {

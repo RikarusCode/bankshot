@@ -8,14 +8,22 @@ type RuntimePiece = {
 };
 
 function orientationFor(kind: PieceKind): ReflectorOrientation | null {
-  if (kind === "slash" || kind === "fixedSlash" || kind === "crackedSlash") return "slash";
-  if (kind === "backslash" || kind === "fixedBackslash" || kind === "crackedBackslash") return "backslash";
+  if (kind === "slash" || kind === "fixedSlash" || kind === "glassSlash") return "slash";
+  if (kind === "backslash" || kind === "fixedBackslash" || kind === "glassBackslash") return "backslash";
   return null;
+}
+
+function gatePassDirections(orientation: ReflectorOrientation, passDirection: PuzzleConfig["launchDirection"]): PuzzleConfig["launchDirection"][] {
+  if (orientation === "slash") {
+    return passDirection === "N" || passDirection === "E" ? ["S", "W"] : ["N", "E"];
+  }
+
+  return passDirection === "N" || passDirection === "W" ? ["S", "E"] : ["N", "W"];
 }
 
 function mutableStateKey(map: Map<string, RuntimePiece>): string {
   return [...map.values()]
-    .filter((piece) => piece.kind.startsWith("cracked"))
+    .filter((piece) => piece.kind.startsWith("glass"))
     .map((piece) => `${piece.coord}:${piece.kind}`)
     .sort()
     .join("|");
@@ -101,7 +109,7 @@ export function simulateShot(puzzle: PuzzleConfig, playerPieces: PlayerPiece[]):
       continue;
     }
 
-    if (piece.kind === "crackedBlock") {
+    if (piece.kind === "glassBlock") {
       pieces.delete(piece.coord);
       direction = opposite(direction);
       bounces += 1;
@@ -110,13 +118,14 @@ export function simulateShot(puzzle: PuzzleConfig, playerPieces: PlayerPiece[]):
     }
 
     if (piece.kind === "oneWayGate") {
-      if (piece.gate && direction === piece.gate.passDirection) {
+      const gate = piece.gate ?? { orientation: "slash" as const, passDirection: "E" as const };
+      if (gatePassDirections(gate.orientation, gate.passDirection).includes(direction)) {
         position = next;
         path.push({ position, direction, event: "move", pieceKind: piece.kind });
         continue;
       }
       position = next;
-      direction = reflect(direction, piece.gate?.orientation ?? "slash");
+      direction = reflect(direction, gate.orientation);
       bounces += 1;
       path.push({ position, direction, event: "bounce", pieceKind: piece.kind });
       continue;
@@ -124,7 +133,7 @@ export function simulateShot(puzzle: PuzzleConfig, playerPieces: PlayerPiece[]):
 
     const orientation = orientationFor(piece.kind);
     if (orientation) {
-      if (piece.kind === "crackedSlash" || piece.kind === "crackedBackslash") {
+      if (piece.kind === "glassSlash" || piece.kind === "glassBackslash") {
         pieces.delete(piece.coord);
       }
       position = next;
@@ -133,7 +142,7 @@ export function simulateShot(puzzle: PuzzleConfig, playerPieces: PlayerPiece[]):
       path.push({
         position,
         direction,
-        event: piece.kind === "crackedSlash" || piece.kind === "crackedBackslash" ? "break" : "bounce",
+        event: piece.kind === "glassSlash" || piece.kind === "glassBackslash" ? "break" : "bounce",
         pieceKind: piece.kind
       });
       continue;

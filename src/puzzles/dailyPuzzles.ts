@@ -15,24 +15,25 @@ export const dailyPuzzles: PuzzleConfig[] = [
     fixedPieces: [
       { coord: { row: 2, col: 4 }, kind: "fixedBackslash" },
       { coord: { row: 1, col: 1 }, kind: "solidBlock" },
-      { coord: { row: 5, col: 5 }, kind: "crackedBlock" }
+      { coord: { row: 5, col: 5 }, kind: "glassBlock" }
     ]
   },
   {
     schemaVersion: 1,
-    id: "daily-002",
+    id: "daily-002-glass-rail",
     number: 2,
     date: "2026-06-22",
     title: "Glass Rail",
-    size: 7,
-    start: { row: 3, col: 0 },
-    launchDirection: "E",
-    pocket: { row: 0, col: 2 },
-    inventory: { slash: 0, backslash: 0 },
+    size: 8,
+    start: { row: 7, col: 1 },
+    launchDirection: "N",
+    pocket: { row: 7, col: 2 },
+    inventory: { slash: 1, backslash: 1 },
     fixedPieces: [
-      { coord: { row: 3, col: 2 }, kind: "crackedSlash" },
-      { coord: { row: 5, col: 4 }, kind: "solidBlock" },
-      { coord: { row: 1, col: 5 }, kind: "fixedBackslash" }
+      { coord: { row: 2, col: 1 }, kind: "glassSlash" },
+      { coord: { row: 5, col: 5 }, kind: "fixedSlash" },
+      { coord: { row: 1, col: 6 }, kind: "solidBlock" },
+      { coord: { row: 6, col: 6 }, kind: "glassBlock" }
     ]
   },
   {
@@ -52,7 +53,7 @@ export const dailyPuzzles: PuzzleConfig[] = [
         kind: "oneWayGate",
         gate: { orientation: "slash", passDirection: "E" }
       },
-      { coord: { row: 5, col: 2 }, kind: "crackedBlock" }
+      { coord: { row: 5, col: 2 }, kind: "glassBlock" }
     ]
   }
 ];

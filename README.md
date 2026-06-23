@@ -18,5 +18,5 @@ npm run build
 - Daily puzzle mode with local attempt tracking and streaks.
 - Custom puzzle import through JSON paste.
 - Puzzle editor with exportable data structures.
-- Pure TypeScript simulation engine for grid movement, bumpers, blocks, cracked
-  pieces, one-way gates, misses, wins, and loops.
+- Pure TypeScript simulation engine for grid movement, bumpers, blocks, glass
+  pieces, one-way gates, wins, and loops.

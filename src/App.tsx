@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Board } from "./components/Board";
 import { Inventory } from "./components/Inventory";
 import { ModeTabs } from "./components/ModeTabs";
@@ -15,19 +15,15 @@ import { validatePlayerPieces, isCellAvailable } from "./game/puzzleValidation";
 import { shareText } from "./game/scoring";
 import { simulateShot } from "./game/simulate";
 import { loadDailyProgress, loadStreak, saveDailyProgress, updateStreakOnSolve } from "./game/storage";
-import type { Coord, DailyProgress, Direction, Mode, PathStep, PlayerPiece, PuzzleConfig, SimulationResult, StreakState } from "./game/types";
+import type { Coord, DailyProgress, Mode, PlayerPiece, PuzzleConfig, SimulationResult, StreakState } from "./game/types";
 import { sampleCustomPuzzle } from "./puzzles";
 
 const dailyPuzzle = getDailyPuzzle();
-const BALL_SPEED_CELLS_PER_SECOND = 4.8;
-
-type RenderBall = {
-  coord: Coord;
-  direction: Direction;
-};
-
-type BallWaypoint = RenderBall & {
-  holdMs?: number;
+type DragState = {
+  kind: "slash" | "backslash";
+  pieceId?: string;
+  x: number;
+  y: number;
 };
 
 function makePieceId(): string {
@@ -38,60 +34,23 @@ function hasInventory(puzzle: PuzzleConfig, pieces: PlayerPiece[], kind: "slash"
   return pieces.filter((piece) => piece.kind === kind).length < puzzle.inventory[kind];
 }
 
-function directionDelta(direction: Direction): Coord {
-  switch (direction) {
-    case "N":
-      return { row: -1, col: 0 };
-    case "E":
-      return { row: 0, col: 1 };
-    case "S":
-      return { row: 1, col: 0 };
-    case "W":
-      return { row: 0, col: -1 };
-  }
-}
-
-function distance(a: Coord, b: Coord): number {
-  return Math.hypot(a.row - b.row, a.col - b.col);
-}
-
-function pointNearCellFace(position: Coord, incoming: Direction): Coord {
-  const delta = directionDelta(incoming);
-  return {
-    row: position.row + delta.row * 0.44,
-    col: position.col + delta.col * 0.44
-  };
-}
-
-function buildBallWaypoints(path: PathStep[]): BallWaypoint[] {
-  if (path.length === 0) return [];
-  const waypoints: BallWaypoint[] = [{ coord: path[0].position, direction: path[0].direction }];
-
-  for (let index = 1; index < path.length; index += 1) {
-    const previous = path[index - 1];
-    const step = path[index];
-    const incoming = previous.direction;
-
-    if ((step.event === "bounce" || step.event === "break") && (step.pieceKind === "solidBlock" || step.pieceKind === "crackedBlock")) {
-      waypoints.push({ coord: pointNearCellFace(step.position, incoming), direction: incoming, holdMs: 36 });
-      waypoints.push({ coord: step.position, direction: step.direction });
-      continue;
-    }
-
-    if (step.event === "rail") {
-      waypoints.push({ coord: pointNearCellFace(step.position, incoming), direction: incoming, holdMs: 28 });
-      waypoints.push({ coord: step.position, direction: step.direction });
-      continue;
-    }
-
-    waypoints.push({
-      coord: step.position,
-      direction: step.direction,
-      holdMs: step.event === "bounce" || step.event === "break" ? 32 : undefined
-    });
-  }
-
-  return waypoints;
+function SoundIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg className="sound-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 9.5v5h3.6l4.9 4.1V5.4L7.6 9.5H4Z" />
+      {muted ? (
+        <>
+          <path className="sound-stroke" d="m16.2 9.2 4.1 4.1" />
+          <path className="sound-stroke" d="m20.3 9.2-4.1 4.1" />
+        </>
+      ) : (
+        <>
+          <path className="sound-stroke" d="M16 8.2c1.1.9 1.7 2.2 1.7 3.8s-.6 2.9-1.7 3.8" />
+          <path className="sound-stroke" d="M18.7 5.7c1.8 1.5 2.8 3.7 2.8 6.3s-1 4.8-2.8 6.3" />
+        </>
+      )}
+    </svg>
+  );
 }
 
 export default function App() {
@@ -100,99 +59,96 @@ export default function App() {
   const [playerPieces, setPlayerPieces] = useState<PlayerPiece[]>([]);
   const [selectedPlacement, setSelectedPlacement] = useState<"slash" | "backslash" | undefined>();
   const [selectedPieceId, setSelectedPieceId] = useState<string | undefined>();
-  const [result, setResult] = useState<SimulationResult | undefined>();
-  const [ball, setBall] = useState<RenderBall>({ coord: dailyPuzzle.start, direction: dailyPuzzle.launchDirection });
+  const [shot, setShot] = useState<{ id: number; result: SimulationResult } | undefined>();
+  const [revealedResult, setRevealedResult] = useState<SimulationResult | undefined>();
   const [locked, setLocked] = useState(false);
+  const [dragging, setDragging] = useState<DragState | undefined>();
+  const [muted, setMuted] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress>(() => loadDailyProgress(dailyPuzzle.id, localDateString()));
   const [streak, setStreak] = useState<StreakState>(() => loadStreak());
-  const animationFrameRef = useRef<number | undefined>(undefined);
 
   const puzzle = mode === "daily" ? dailyPuzzle : customPuzzle;
-  const solved = mode === "daily" ? dailyProgress.solved : result?.status === "win";
+  const solved = mode === "daily" ? dailyProgress.solved : revealedResult?.status === "win";
 
   useEffect(() => {
     setPlayerPieces([]);
     setSelectedPlacement(undefined);
     setSelectedPieceId(undefined);
-    setResult(undefined);
-    setBall({ coord: puzzle.start, direction: puzzle.launchDirection });
+    setShot(undefined);
+    setRevealedResult(undefined);
     setLocked(false);
   }, [puzzle.id, mode]);
 
-  useEffect(() => {
-    if (!locked || !result) return;
-    const waypoints = buildBallWaypoints(result.path);
-    if (waypoints.length === 0) return;
-
-    const segments = waypoints.slice(1).map((point, index) => {
-      const from = waypoints[index];
-      const segmentDistance = distance(from.coord, point.coord);
-      const duration = Math.max(70, (segmentDistance / BALL_SPEED_CELLS_PER_SECOND) * 1000 + (from.holdMs ?? 0));
-      return { from, to: point, duration };
-    });
-
-    let segmentIndex = 0;
-    let segmentStartedAt: number | undefined;
-    setBall(waypoints[0]);
-
-    const animate = (time: number) => {
-      const segment = segments[segmentIndex];
-      if (!segment) {
-        setBall(waypoints[waypoints.length - 1]);
-        setLocked(false);
-        return;
-      }
-
-      if (segmentStartedAt === undefined) segmentStartedAt = time;
-      const elapsed = time - segmentStartedAt;
-      const progress = Math.min(1, elapsed / segment.duration);
-      const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-
-      setBall({
-        coord: {
-          row: segment.from.coord.row + (segment.to.coord.row - segment.from.coord.row) * eased,
-          col: segment.from.coord.col + (segment.to.coord.col - segment.from.coord.col) * eased
-        },
-        direction: progress < 1 ? segment.from.direction : segment.to.direction
-      });
-
-      if (progress >= 1) {
-        segmentIndex += 1;
-        segmentStartedAt = undefined;
-      }
-
-      animationFrameRef.current = window.requestAnimationFrame(animate);
-    };
-
-    animationFrameRef.current = window.requestAnimationFrame(animate);
-
-    return () => {
-      if (animationFrameRef.current !== undefined) window.cancelAnimationFrame(animationFrameRef.current);
-    };
-  }, [locked, result]);
-
   const validationErrors = useMemo(() => validatePlayerPieces(puzzle, playerPieces), [puzzle, playerPieces]);
+  const shootDisabled = locked || Boolean(revealedResult) || validationErrors.length > 0;
+
+  useEffect(() => {
+    if (!dragging) return;
+    const activeDrag = dragging;
+
+    function handlePointerMove(event: PointerEvent) {
+      setDragging((current) => (current ? { ...current, x: event.clientX, y: event.clientY } : current));
+    }
+
+    function handlePointerUp(event: PointerEvent) {
+      const target = document.elementFromPoint(event.clientX, event.clientY);
+      const cell = target?.closest?.(".cell") as HTMLElement | null;
+      if (cell?.dataset.row && cell.dataset.col) {
+        const coord = { row: Number(cell.dataset.row), col: Number(cell.dataset.col) };
+        if (activeDrag.pieceId) movePiece(activeDrag.pieceId, coord);
+        else placePiece(activeDrag.kind, coord);
+      }
+      setDragging(undefined);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+    window.addEventListener("pointercancel", handlePointerUp, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [dragging, playerPieces, puzzle, locked]);
+
+  function startInventoryDrag(kind: "slash" | "backslash", event: ReactPointerEvent) {
+    if (locked || !hasInventory(puzzle, playerPieces, kind)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedPlacement(undefined);
+    setSelectedPieceId(undefined);
+    setDragging({ kind, x: event.clientX, y: event.clientY });
+  }
+
+  function startPieceDrag(piece: PlayerPiece, event: ReactPointerEvent) {
+    if (locked) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedPlacement(undefined);
+    setSelectedPieceId(piece.id);
+    setDragging({ kind: piece.kind, pieceId: piece.id, x: event.clientX, y: event.clientY });
+  }
 
   function placePiece(kind: "slash" | "backslash", coord: Coord) {
     if (locked || !hasInventory(puzzle, playerPieces, kind)) return;
     if (!isCellAvailable(puzzle, playerPieces, coord.row, coord.col)) return;
     setPlayerPieces((current) => [...current, { id: makePieceId(), coord, kind }]);
     setSelectedPlacement(hasInventory(puzzle, [...playerPieces, { id: "preview", coord, kind }], kind) ? kind : undefined);
-    setResult(undefined);
-    setBall({ coord: puzzle.start, direction: puzzle.launchDirection });
+    setShot(undefined);
+    setRevealedResult(undefined);
   }
 
   function movePiece(pieceId: string, coord: Coord) {
     if (locked || !isCellAvailable(puzzle, playerPieces, coord.row, coord.col, pieceId)) return;
     setPlayerPieces((current) => current.map((piece) => (piece.id === pieceId ? { ...piece, coord } : piece)));
     setSelectedPieceId(undefined);
-    setResult(undefined);
-    setBall({ coord: puzzle.start, direction: puzzle.launchDirection });
+    setShot(undefined);
+    setRevealedResult(undefined);
   }
 
   function handleCellClick(coord: Coord) {
-    if (locked || solved) return;
+    if (locked) return;
     const pieceAtCell = playerPieces.find((piece) => coordKey(piece.coord) === coordKey(coord));
     if (pieceAtCell) {
       if (selectedPieceId === pieceAtCell.id) {
@@ -202,8 +158,8 @@ export default function App() {
         setSelectedPieceId(pieceAtCell.id);
         setSelectedPlacement(undefined);
       }
-      setResult(undefined);
-      setBall({ coord: puzzle.start, direction: puzzle.launchDirection });
+      setShot(undefined);
+      setRevealedResult(undefined);
       return;
     }
 
@@ -218,50 +174,63 @@ export default function App() {
   }
 
   function selectInventory(kind: "slash" | "backslash") {
-    if (locked || solved || !hasInventory(puzzle, playerPieces, kind)) return;
+    if (locked || !hasInventory(puzzle, playerPieces, kind)) return;
     setSelectedPlacement((current) => (current === kind ? undefined : kind));
     setSelectedPieceId(undefined);
   }
 
   function shoot() {
-    if (locked || validationErrors.length > 0 || solved) return;
+    if (shootDisabled) return;
     const nextResult = simulateShot(puzzle, playerPieces);
-    setResult(nextResult);
+    setShot({ id: Date.now(), result: nextResult });
+    setRevealedResult(undefined);
     setLocked(true);
     setSelectedPlacement(undefined);
     setSelectedPieceId(undefined);
 
-    if (mode === "daily") {
+    if (mode === "daily" && !dailyProgress.solved) {
       const nextProgress: DailyProgress = {
         ...dailyProgress,
         attempts: dailyProgress.attempts + 1,
-        solved: dailyProgress.solved || nextResult.status === "win",
-        solvedAttempts: nextResult.status === "win" ? dailyProgress.attempts + 1 : dailyProgress.solvedAttempts,
-        shotHistory: [...dailyProgress.shotHistory, nextResult.status]
+        shotHistory: dailyProgress.shotHistory
       };
       setDailyProgress(nextProgress);
       saveDailyProgress(nextProgress);
-      if (nextResult.status === "win") setStreak(updateStreakOnSolve(nextProgress.date));
     }
   }
 
   function stopShot() {
-    if (animationFrameRef.current !== undefined) window.cancelAnimationFrame(animationFrameRef.current);
     setLocked(false);
-    setBall({ coord: puzzle.start, direction: puzzle.launchDirection });
+    setShot(undefined);
   }
 
   function resetBall() {
     stopShot();
-    setResult(undefined);
+    setRevealedResult(undefined);
   }
 
   function clearBoard() {
-    if (solved && !locked) return;
     stopShot();
     setPlayerPieces([]);
     setSelectedPieceId(undefined);
-    setResult(undefined);
+    setRevealedResult(undefined);
+  }
+
+  function completeShot(result: SimulationResult) {
+    setLocked(false);
+    setRevealedResult(result);
+
+    if (mode === "daily" && !dailyProgress.solved) {
+      const nextProgress: DailyProgress = {
+        ...dailyProgress,
+        solved: result.status === "win",
+        solvedAttempts: result.status === "win" ? dailyProgress.attempts : dailyProgress.solvedAttempts,
+        shotHistory: [...dailyProgress.shotHistory, result.status]
+      };
+      setDailyProgress(nextProgress);
+      saveDailyProgress(nextProgress);
+      if (result.status === "win") setStreak(updateStreakOnSolve(nextProgress.date));
+    }
   }
 
   function importCustomPuzzle(nextPuzzle: PuzzleConfig) {
@@ -278,9 +247,14 @@ export default function App() {
           <p className="eyebrow">Daily logic billiards</p>
           <h1>Bankshot</h1>
         </div>
-        <button className="icon-button" onClick={() => setRulesOpen(true)} aria-label="Open rules">
-          ?
-        </button>
+        <div className="header-actions">
+          <button className="icon-button" onClick={() => setMuted((current) => !current)} aria-label={muted ? "Unmute sounds" : "Mute sounds"}>
+            <SoundIcon muted={muted} />
+          </button>
+          <button className="icon-button" onClick={() => setRulesOpen(true)} aria-label="Open rules">
+            ?
+          </button>
+        </div>
       </header>
 
       <ModeTabs mode={mode} onModeChange={setMode} />
@@ -296,15 +270,12 @@ export default function App() {
               playerPieces={playerPieces}
               selectedPieceId={selectedPieceId}
               selectedPlacement={selectedPlacement}
-              locked={locked || Boolean(solved)}
-              ball={ball}
+              locked={locked}
+              shot={shot}
+              muted={muted}
+              onShotComplete={completeShot}
               onCellClick={handleCellClick}
-              onMovePiece={movePiece}
-              onDropNewPiece={placePiece}
-              onDragPlayerPiece={(piece) => {
-                setSelectedPieceId(piece.id);
-                setSelectedPlacement(undefined);
-              }}
+              onStartPieceDrag={startPieceDrag}
             />
             {validationErrors.length > 0 && (
               <ul className="errors">
@@ -316,12 +287,18 @@ export default function App() {
           </section>
 
           <aside className="side-panel">
-            <Inventory inventory={puzzle.inventory} playerPieces={playerPieces} selectedPlacement={selectedPlacement} locked={locked || solved} onSelect={selectInventory} />
-            <ShootControls animating={locked} solved={Boolean(solved)} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
-            <ResultPanel result={result} />
+            <Inventory inventory={puzzle.inventory} playerPieces={playerPieces} selectedPlacement={selectedPlacement} locked={locked} onSelect={selectInventory} onStartDrag={startInventoryDrag} />
+            <ShootControls animating={locked} disabled={shootDisabled} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
+            <ResultPanel result={revealedResult} />
             {mode === "daily" && <ShareButton text={share} disabled={!dailyProgress.solved} />}
             {mode === "custom" && <PuzzleImportExport puzzle={customPuzzle} onImport={importCustomPuzzle} />}
           </aside>
+        </div>
+      )}
+
+      {dragging && (
+        <div className="drag-preview" style={{ transform: `translate3d(${dragging.x - 28}px, ${dragging.y - 28}px, 0)` }}>
+          <span className={`inventory-piece ${dragging.kind === "slash" ? "slash-wall" : "backslash-wall"}`} />
         </div>
       )}
 

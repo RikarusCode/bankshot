@@ -17,15 +17,36 @@ const fixedTools: Array<{ tool: EditorTool; label: string }> = [
   { tool: "fixedSlash", label: "Fixed /" },
   { tool: "fixedBackslash", label: "Fixed \\" },
   { tool: "solidBlock", label: "Block" },
-  { tool: "crackedBlock", label: "Cracked Block" },
-  { tool: "crackedSlash", label: "Cracked /" },
-  { tool: "crackedBackslash", label: "Cracked \\" },
+  { tool: "glassBlock", label: "Glass Block" },
+  { tool: "glassSlash", label: "Glass /" },
+  { tool: "glassBackslash", label: "Glass \\" },
   { tool: "oneWayGate", label: "Gate" },
   { tool: "erase", label: "Erase" }
 ];
 
 function key(coord: Coord): string {
   return `${coord.row},${coord.col}`;
+}
+
+function gateSideClass(piece: FixedPiece): string {
+  if (!piece.gate) return " gate-slash gate-pass-ne";
+  const orientationClass = piece.gate.orientation === "slash" ? "gate-slash" : "gate-backslash";
+  let sideClass = "gate-pass-ne";
+  if (piece.gate.orientation === "slash") {
+    sideClass = piece.gate.passDirection === "N" || piece.gate.passDirection === "E" ? "gate-pass-ne" : "gate-pass-sw";
+  } else {
+    sideClass = piece.gate.passDirection === "N" || piece.gate.passDirection === "W" ? "gate-pass-nw" : "gate-pass-se";
+  }
+  return ` ${orientationClass} ${sideClass}`;
+}
+
+function editorPieceClass(piece: FixedPiece): string {
+  const kind = piece.kind;
+  const orientation = kind === "fixedSlash" || kind === "glassSlash" ? " slash-wall" : kind === "fixedBackslash" || kind === "glassBackslash" ? " backslash-wall" : "";
+  if (kind.startsWith("glass")) return `editor-piece glass${orientation}`;
+  if (kind === "solidBlock") return "editor-piece block";
+  if (kind === "oneWayGate") return `editor-piece gate${gateSideClass(piece)}`;
+  return `editor-piece fixed${orientation}`;
 }
 
 export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
@@ -110,22 +131,29 @@ export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
           />
         </label>
         <label>
-          Gate Shape
+          Gate Rail Shape
           <select value={gateOrientation} onChange={(event) => setGateOrientation(event.target.value as ReflectorOrientation)}>
             <option value="slash">/</option>
             <option value="backslash">\</option>
           </select>
         </label>
         <label>
-          Gate Pass
+          Gate Green Side
           <select value={gatePassDirection} onChange={(event) => setGatePassDirection(event.target.value as Direction)}>
-            {DIRECTIONS.map((direction) => (
-              <option key={direction} value={direction}>
-                {direction}
-              </option>
-            ))}
+            {gateOrientation === "slash" ? (
+              <>
+                <option value="E">N/E side</option>
+                <option value="W">S/W side</option>
+              </>
+            ) : (
+              <>
+                <option value="N">N/W side</option>
+                <option value="S">S/E side</option>
+              </>
+            )}
           </select>
         </label>
+        <p className="editor-hint">A gate is green on the two-direction side the ball can pass through. Yellow approaches bounce as the selected rail shape.</p>
       </div>
 
       <div className="tool-palette">
@@ -143,7 +171,7 @@ export function PuzzleEditor({ onPlayPuzzle }: PuzzleEditorProps) {
           const isPocket = key(coord) === key(puzzle.pocket);
           return (
             <button key={key(coord)} className={`editor-cell ${isStart ? "start" : ""} ${isPocket ? "pocket" : ""}`} onClick={() => applyTool(coord)}>
-              {isStart ? "S" : isPocket ? "P" : fixed?.kind === "fixedSlash" || fixed?.kind === "crackedSlash" ? "/" : fixed?.kind === "fixedBackslash" || fixed?.kind === "crackedBackslash" ? "\\" : fixed?.kind === "solidBlock" ? "B" : fixed?.kind === "crackedBlock" ? "C" : fixed?.kind === "oneWayGate" ? "G" : ""}
+              {isStart ? "S" : isPocket ? "P" : fixed ? <span className={editorPieceClass(fixed)} /> : ""}
             </button>
           );
         })}

@@ -2,7 +2,7 @@ import { coordKey, isEdge, isInside, launchPointsInward, sameCoord } from "./dir
 import type { Coord, Direction, PieceKind, PlayerPiece, PuzzleConfig, ReflectorOrientation } from "./types";
 
 const directions: Direction[] = ["N", "E", "S", "W"];
-const fixedKinds: PieceKind[] = ["fixedSlash", "fixedBackslash", "solidBlock", "crackedBlock", "crackedSlash", "crackedBackslash", "oneWayGate"];
+const fixedKinds: PieceKind[] = ["fixedSlash", "fixedBackslash", "solidBlock", "glassBlock", "glassSlash", "glassBackslash", "oneWayGate"];
 const orientations: ReflectorOrientation[] = ["slash", "backslash"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

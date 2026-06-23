@@ -1,3 +1,4 @@
+import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Inventory as InventoryType, PlayerPiece } from "../game/types";
 
 type InventoryProps = {
@@ -6,9 +7,10 @@ type InventoryProps = {
   selectedPlacement?: "slash" | "backslash";
   locked?: boolean;
   onSelect: (kind: "slash" | "backslash") => void;
+  onStartDrag: (kind: "slash" | "backslash", event: ReactPointerEvent) => void;
 };
 
-export function Inventory({ inventory, playerPieces, selectedPlacement, locked = false, onSelect }: InventoryProps) {
+export function Inventory({ inventory, playerPieces, selectedPlacement, locked = false, onSelect, onStartDrag }: InventoryProps) {
   const usedSlash = playerPieces.filter((piece) => piece.kind === "slash").length;
   const usedBackslash = playerPieces.filter((piece) => piece.kind === "backslash").length;
   const remaining = {
@@ -21,11 +23,7 @@ export function Inventory({ inventory, playerPieces, selectedPlacement, locked =
       <button
         className={selectedPlacement === "slash" ? "active" : ""}
         disabled={locked || remaining.slash <= 0}
-        draggable={!locked && remaining.slash > 0}
-        onDragStart={(event) => {
-          event.dataTransfer.effectAllowed = "copy";
-          event.dataTransfer.setData("text/plain", "new:slash");
-        }}
+        onPointerDown={(event) => onStartDrag("slash", event)}
         onClick={() => onSelect("slash")}
       >
         <span className="inventory-piece slash-wall" aria-hidden="true" />
@@ -34,11 +32,7 @@ export function Inventory({ inventory, playerPieces, selectedPlacement, locked =
       <button
         className={selectedPlacement === "backslash" ? "active" : ""}
         disabled={locked || remaining.backslash <= 0}
-        draggable={!locked && remaining.backslash > 0}
-        onDragStart={(event) => {
-          event.dataTransfer.effectAllowed = "copy";
-          event.dataTransfer.setData("text/plain", "new:backslash");
-        }}
+        onPointerDown={(event) => onStartDrag("backslash", event)}
         onClick={() => onSelect("backslash")}
       >
         <span className="inventory-piece backslash-wall" aria-hidden="true" />

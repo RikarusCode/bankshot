@@ -1,21 +1,21 @@
 type ShootControlsProps = {
   animating: boolean;
-  solved: boolean;
+  disabled: boolean;
   onShoot: () => void;
   onClear: () => void;
   onResetBall: () => void;
 };
 
-export function ShootControls({ animating, solved, onShoot, onClear, onResetBall }: ShootControlsProps) {
+export function ShootControls({ animating, disabled, onShoot, onClear, onResetBall }: ShootControlsProps) {
   return (
     <section className="shoot-controls">
-      <button className="primary" onClick={onShoot} disabled={animating || solved}>
+      <button className="primary" onClick={onShoot} disabled={disabled || animating}>
         Shoot
       </button>
-      <button onClick={onClear} disabled={solved && !animating}>
+      <button onClick={onClear}>
         Clear Table
       </button>
-      <button onClick={onResetBall} disabled={solved && !animating}>
+      <button onClick={onResetBall}>
         Reset Ball
       </button>
     </section>

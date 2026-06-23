@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { simulateShot } from "./simulate";
 import type { PlayerPiece, PuzzleConfig } from "./types";
+import { dailyPuzzles } from "../puzzles/dailyPuzzles";
 
 const basePuzzle: PuzzleConfig = {
   schemaVersion: 1,
@@ -49,53 +50,76 @@ it("bounces back after entering a solid block cell", () => {
   ).toBe(true);
 });
 
-it("cracked blocks bounce back once and disappear for loop state", () => {
+it("glass blocks bounce back once and disappear for loop state", () => {
   const result = simulateShot(
     {
       ...basePuzzle,
       start: { row: 3, col: 0 },
       launchDirection: "E",
       pocket: { row: 0, col: 6 },
-      fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "crackedBlock" }]
+      fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "glassBlock" }]
     },
     []
   );
   expect(result.status).toBe("loop");
-  expect(result.path.some((step) => step.event === "break" && step.pieceKind === "crackedBlock")).toBe(true);
+  expect(result.path.some((step) => step.event === "break" && step.pieceKind === "glassBlock")).toBe(true);
   expect(result.bounces).toBeGreaterThanOrEqual(1);
 });
 
-it("cracked slash reflects once and then is removed", () => {
+it("glass slash reflects once and then is removed", () => {
   const result = simulateShot(
     {
       ...basePuzzle,
       start: { row: 3, col: 0 },
       launchDirection: "E",
       pocket: { row: 0, col: 2 },
-      fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "crackedSlash" }]
+      fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "glassSlash" }]
     },
     []
   );
   expect(result.status).toBe("win");
-  expect(result.path.some((step) => step.event === "break" && step.pieceKind === "crackedSlash")).toBe(true);
+  expect(result.path.some((step) => step.event === "break" && step.pieceKind === "glassSlash")).toBe(true);
 });
 
-it("one-way gates pass from the configured direction", () => {
-  const result = simulateShot(
+it("one-way gates pass from both directions on the green side", () => {
+  const eastSideEntry = simulateShot(
     {
       ...basePuzzle,
-      start: { row: 3, col: 0 },
-      launchDirection: "E",
-      pocket: { row: 3, col: 6 },
+      start: { row: 3, col: 6 },
+      launchDirection: "W",
+      pocket: { row: 3, col: 0 },
       fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
     },
     []
   );
-  expect(result.status).toBe("win");
+  const northSideEntry = simulateShot(
+    {
+      ...basePuzzle,
+      start: { row: 0, col: 2 },
+      launchDirection: "S",
+      pocket: { row: 6, col: 2 },
+      fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
+    },
+    []
+  );
+  expect(eastSideEntry.status).toBe("win");
+  expect(northSideEntry.status).toBe("win");
+  expect(eastSideEntry.bounces).toBe(0);
+  expect(northSideEntry.bounces).toBe(0);
 });
 
 it("one-way gates reflect from blocked approaches", () => {
-  const result = simulateShot(
+  const westSideEntry = simulateShot(
+    {
+      ...basePuzzle,
+      start: { row: 3, col: 0 },
+      launchDirection: "E",
+      pocket: { row: 3, col: 0 },
+      fixedPieces: [{ coord: { row: 3, col: 2 }, kind: "oneWayGate", gate: { orientation: "slash", passDirection: "E" } }]
+    },
+    []
+  );
+  const southSideEntry = simulateShot(
     {
       ...basePuzzle,
       start: { row: 6, col: 2 },
@@ -105,8 +129,9 @@ it("one-way gates reflect from blocked approaches", () => {
     },
     []
   );
-  expect(result.bounces).toBe(1);
-  expect(result.status).toBe("win");
+  expect(westSideEntry.bounces).toBeGreaterThanOrEqual(1);
+  expect(southSideEntry.bounces).toBeGreaterThanOrEqual(1);
+  expect(southSideEntry.status).toBe("win");
 });
 
 it("detects loops with current mutable board state", () => {
@@ -122,4 +147,14 @@ it("detects loops with current mutable board state", () => {
   );
   expect(result.status).toBe("loop");
   expect(result.path.filter((step) => step.event === "rail").length).toBeGreaterThanOrEqual(5);
+});
+
+it("solves the current 8x8 daily playtest puzzle", () => {
+  const puzzle = dailyPuzzles.find((item) => item.id === "daily-002-glass-rail");
+  expect(puzzle).toBeDefined();
+  const result = simulateShot(puzzle!, [
+    { id: "a", coord: { row: 2, col: 5 }, kind: "backslash" },
+    { id: "b", coord: { row: 5, col: 2 }, kind: "slash" }
+  ]);
+  expect(result.status).toBe("win");
 });
