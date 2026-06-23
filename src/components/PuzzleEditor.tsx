@@ -4,11 +4,13 @@ import { serializePuzzle } from "../game/puzzleExport";
 import { validatePuzzle } from "../game/puzzleValidation";
 import type { Coord, Direction, FixedPiece, PieceKind, PuzzleConfig, ReflectorOrientation } from "../game/types";
 
-type EditorTool = "start" | "pocket" | Exclude<PieceKind, "slash" | "backslash"> | "erase";
+type EditorTool = "start" | "pocket" | "fixedRail" | "glassRail" | "solidBlock" | "glassBlock" | "oneWayGate" | "erase";
 type DraggableEditorObject = { kind: "start"; coord: Coord } | { kind: "pocket"; coord: Coord } | { kind: "fixed"; piece: FixedPiece };
 type EditorDragState = DraggableEditorObject & {
   x: number;
   y: number;
+  width: number;
+  height: number;
 };
 
 type PuzzleEditorProps = {
@@ -20,12 +22,10 @@ type PuzzleEditorProps = {
 const fixedTools: Array<{ tool: EditorTool; label: string }> = [
   { tool: "start", label: "Start" },
   { tool: "pocket", label: "Pocket" },
-  { tool: "fixedSlash", label: "Fixed /" },
-  { tool: "fixedBackslash", label: "Fixed \\" },
+  { tool: "fixedRail", label: "Fixed Rail" },
   { tool: "solidBlock", label: "Block" },
   { tool: "glassBlock", label: "Glass Block" },
-  { tool: "glassSlash", label: "Glass /" },
-  { tool: "glassBackslash", label: "Glass \\" },
+  { tool: "glassRail", label: "Glass Rail" },
   { tool: "oneWayGate", label: "Gate" },
   { tool: "erase", label: "Erase" }
 ];
@@ -55,6 +55,11 @@ function editorPieceClass(piece: FixedPiece): string {
   return `editor-piece fixed${orientation}`;
 }
 
+function railPieceKind(tool: "fixedRail" | "glassRail", orientation: ReflectorOrientation): FixedPiece["kind"] {
+  if (tool === "fixedRail") return orientation === "slash" ? "fixedSlash" : "fixedBackslash";
+  return orientation === "slash" ? "glassSlash" : "glassBackslash";
+}
+
 function draggableAt(puzzle: PuzzleConfig, coord: Coord): DraggableEditorObject | undefined {
   if (key(coord) === key(puzzle.start)) return { kind: "start", coord: puzzle.start };
   if (key(coord) === key(puzzle.pocket)) return { kind: "pocket", coord: puzzle.pocket };
@@ -80,8 +85,8 @@ function moveObject(puzzle: PuzzleConfig, object: DraggableEditorObject, target:
 }
 
 export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEditorProps) {
-  const [tool, setTool] = useState<EditorTool>("fixedSlash");
-  const [gateOrientation, setGateOrientation] = useState<ReflectorOrientation>("slash");
+  const [tool, setTool] = useState<EditorTool>("fixedRail");
+  const [railShape, setRailShape] = useState<ReflectorOrientation>("slash");
   const [gatePassDirection, setGatePassDirection] = useState<Direction>("E");
   const [dragging, setDragging] = useState<EditorDragState | undefined>();
   const [suppressClickKey, setSuppressClickKey] = useState<string | undefined>();
@@ -144,10 +149,11 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
     if (tool === "pocket") return;
     if (tool === "erase") return onPuzzleChange({ ...puzzle, fixedPieces });
 
+    const kind = tool === "fixedRail" || tool === "glassRail" ? railPieceKind(tool, railShape) : tool;
     const nextPiece: FixedPiece = {
       coord,
-      kind: tool,
-      gate: tool === "oneWayGate" ? { orientation: gateOrientation, passDirection: gatePassDirection } : undefined
+      kind,
+      gate: tool === "oneWayGate" ? { orientation: railShape, passDirection: gatePassDirection } : undefined
     };
     onPuzzleChange({ ...puzzle, fixedPieces: [...fixedPieces, nextPiece] });
   }
@@ -156,7 +162,8 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
     if (!object) return;
     event.preventDefault();
     event.stopPropagation();
-    setDragging({ ...object, x: event.clientX, y: event.clientY });
+    const rect = event.currentTarget.getBoundingClientRect();
+    setDragging({ ...object, x: event.clientX, y: event.clientY, width: rect.width, height: rect.height });
   }
 
   async function copyJson() {
@@ -207,7 +214,7 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
           </select>
         </label>
         <label>
-          / Inventory
+          Rail / Inventory
           <input
             type="number"
             min={0}
@@ -216,7 +223,7 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
           />
         </label>
         <label>
-          \ Inventory
+          Rail \ Inventory
           <input
             type="number"
             min={0}
@@ -225,16 +232,16 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
           />
         </label>
         <label>
-          Gate Rail Shape
-          <select value={gateOrientation} onChange={(event) => setGateOrientation(event.target.value as ReflectorOrientation)}>
-            <option value="slash">/</option>
-            <option value="backslash">\</option>
+          Rail Shape
+          <select value={railShape} onChange={(event) => setRailShape(event.target.value as ReflectorOrientation)}>
+            <option value="slash">/ rail</option>
+            <option value="backslash">\ rail</option>
           </select>
         </label>
         <label>
           Gate Green Side
           <select value={gatePassDirection} onChange={(event) => setGatePassDirection(event.target.value as Direction)}>
-            {gateOrientation === "slash" ? (
+            {railShape === "slash" ? (
               <>
                 <option value="E">N/E side</option>
                 <option value="W">S/W side</option>
@@ -247,7 +254,7 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
             )}
           </select>
         </label>
-        <p className="editor-hint">A gate is green on the two-direction side the ball can pass through. Yellow approaches bounce as the selected rail shape.</p>
+        <p className="editor-hint">Rail shape controls fixed rails, glass rails, and gates. A gate is green on the two-direction side the ball can pass through.</p>
       </div>
 
       <div className="tool-palette">
@@ -284,7 +291,14 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
       </div>
 
       {dragging && (
-        <div className="editor-drag-preview" style={{ transform: `translate3d(${dragging.x - 26}px, ${dragging.y - 26}px, 0)` }}>
+        <div
+          className="editor-drag-preview"
+          style={{
+            width: `${dragging.width}px`,
+            height: `${dragging.height}px`,
+            transform: `translate3d(${dragging.x - dragging.width / 2}px, ${dragging.y - dragging.height / 2}px, 0)`
+          }}
+        >
           <span className={dragPreviewClass()}>{dragPreviewLabel()}</span>
         </div>
       )}

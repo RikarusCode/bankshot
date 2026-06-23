@@ -1,21 +1,95 @@
+import type { ReactNode } from "react";
+
 type RuleModalProps = {
   open: boolean;
   onClose: () => void;
 };
+
+function RuleIcon({ children }: { children: ReactNode }) {
+  return (
+    <span className="rule-icon" aria-hidden="true">
+      {children}
+    </span>
+  );
+}
 
 export function RuleModal({ open, onClose }: RuleModalProps) {
   if (!open) return null;
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Rules">
-      <div className="modal">
+      <div className="modal rules-modal">
         <button className="icon-button close" onClick={onClose} aria-label="Close rules">
           X
         </button>
-        <h2>Bankshot Rules</h2>
-        <p>Place your limited bumpers, then shoot. The 8-ball rolls one square at a time in straight grid lines.</p>
-        <p>The ball enters an obstacle square, hits the obstacle, and turns. Rails and solid blocks bounce it back. Glass pieces work once during a shot, then reset on the next attempt.</p>
-        <p>The goal is to enter the pocket on the edge in as few attempts as possible.</p>
+        <div className="rules-header">
+          <p className="eyebrow">How to play</p>
+          <h2>Bankshot Rules</h2>
+          <p>Place rails, press Shoot, and guide the 8-ball into the pocket in as few attempts as possible.</p>
+        </div>
+
+        <div className="rules-grid">
+          <section className="rule-card">
+            <h3>Turn Flow</h3>
+            <p>The board is deterministic. The ball moves one grid line at a time in the four cardinal directions.</p>
+            <p>You can move placed rails until you shoot. During the shot, the table is locked until you reset the ball or the shot resolves.</p>
+          </section>
+
+          <section className="rule-card">
+            <h3>Pockets</h3>
+            <p>Pockets sit in the rail outside the grid. The ball must enter a pocket directly from the matching row or column.</p>
+            <p>A side pocket on the right, for example, only accepts a ball moving left to right into that rail slot.</p>
+          </section>
+        </div>
+
+        <section className="piece-rules">
+          <h3>Pieces</h3>
+          <div className="piece-rule">
+            <RuleIcon>
+              <span className="piece player-piece slash-wall" />
+            </RuleIcon>
+            <div>
+              <strong>Player rail</strong>
+              <p>Placed from your inventory. Each rail turns the ball 90 degrees based on its angle.</p>
+            </div>
+          </div>
+          <div className="piece-rule">
+            <RuleIcon>
+              <span className="piece fixed-piece slash-wall" />
+            </RuleIcon>
+            <div>
+              <strong>Fixed rail</strong>
+              <p>Already on the table. It turns the ball like a player rail and cannot be moved.</p>
+            </div>
+          </div>
+          <div className="piece-rule">
+            <RuleIcon>
+              <span className="piece fixed-piece block" />
+            </RuleIcon>
+            <div>
+              <strong>Block</strong>
+              <p>Bounces the ball straight back.</p>
+            </div>
+          </div>
+          <div className="piece-rule">
+            <RuleIcon>
+              <span className="piece fixed-piece glass" />
+            </RuleIcon>
+            <div>
+              <strong>Glass piece</strong>
+              <p>Works once during the shot, then disappears. Glass resets after the next attempt starts.</p>
+            </div>
+          </div>
+          <div className="piece-rule">
+            <RuleIcon>
+              <span className="piece fixed-piece gate gate-slash gate-pass-ne" />
+            </RuleIcon>
+            <div>
+              <strong>Gate</strong>
+              <p>The green side lets the ball pass through. Yellow approaches bounce using the gate's rail angle.</p>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

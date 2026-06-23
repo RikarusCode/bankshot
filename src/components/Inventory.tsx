@@ -19,14 +19,16 @@ export function Inventory({ inventory, playerPieces, selectedPlacement, locked =
   };
 
   return (
-    <section className="inventory" aria-label="Bumper inventory">
+    <section className="inventory" aria-label="Rail inventory">
       <button
         className={selectedPlacement === "slash" ? "active" : ""}
         disabled={locked || remaining.slash <= 0}
         onPointerDown={(event) => onStartDrag("slash", event)}
         onClick={() => onSelect("slash")}
+        aria-label="Place left-turn rail"
       >
         <span className="inventory-piece slash-wall" aria-hidden="true" />
+        <span>Rail A</span>
         <strong>{remaining.slash}</strong>
       </button>
       <button
@@ -34,8 +36,10 @@ export function Inventory({ inventory, playerPieces, selectedPlacement, locked =
         disabled={locked || remaining.backslash <= 0}
         onPointerDown={(event) => onStartDrag("backslash", event)}
         onClick={() => onSelect("backslash")}
+        aria-label="Place right-turn rail"
       >
         <span className="inventory-piece backslash-wall" aria-hidden="true" />
+        <span>Rail B</span>
         <strong>{remaining.backslash}</strong>
       </button>
     </section>

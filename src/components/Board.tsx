@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { buildBallAnimationSegments, directionDelta, interpolateBallSegment } from "../game/animationPath";
 import { coordKey, pocketEdge } from "../game/directions";
-import { isCellAvailable } from "../game/puzzleValidation";
 import { playBounce, playCueStrike, playGlassBreak, playGlassTick, playPocket, playRailBounce, playSolidBounce, startRoll, stopRoll } from "../game/sound";
 import type { Coord, FixedPiece, PlayerPiece, PuzzleConfig, SimulationResult } from "../game/types";
 import { Cell } from "./Cell";
@@ -14,7 +13,6 @@ type BoardProps = {
   puzzle: PuzzleConfig;
   playerPieces: PlayerPiece[];
   selectedPieceId?: string;
-  selectedPlacement?: "slash" | "backslash";
   locked?: boolean;
   shot?: { id: number; result: SimulationResult };
   muted: boolean;
@@ -35,7 +33,6 @@ export function Board({
   puzzle,
   playerPieces,
   selectedPieceId,
-  selectedPlacement,
   locked = false,
   shot,
   muted,
@@ -293,9 +290,6 @@ export function Board({
             const key = coordKey(coord);
             const playerPiece = playerByCell.get(key);
             const fixedPiece = hiddenGlassKeys.has(key) ? undefined : fixedByCell.get(key);
-            const movingId = selectedPieceId;
-            const available = !locked && Boolean(selectedPlacement || selectedPieceId) && isCellAvailable(puzzle, playerPieces, coord.row, coord.col, movingId);
-
             return (
               <Cell
                 key={key}
@@ -303,7 +297,7 @@ export function Board({
                 fixedPiece={fixedPiece}
                 playerPiece={playerPiece}
                 isPocket={false}
-                isAvailable={available}
+                isAvailable={false}
                 selected={Boolean(playerPiece && playerPiece.id === selectedPieceId)}
                 onClick={() => onCellClick(coord)}
                 onStartDrag={onStartPieceDrag}

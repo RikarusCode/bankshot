@@ -345,6 +345,110 @@ h1 {
   line-height: 1.55;
 }
 
+.rules-modal {
+  display: grid;
+  gap: 18px;
+  width: min(720px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: auto;
+  padding: 26px;
+}
+
+.rules-header {
+  display: grid;
+  gap: 6px;
+  padding-right: 44px;
+}
+
+.rules-header p,
+.rule-card p,
+.piece-rule p {
+  margin: 0;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rule-card,
+.piece-rules {
+  border: 1px solid #d8e2dc;
+  border-radius: 8px;
+  background: #f7faf8;
+}
+
+.rule-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.rule-card h3,
+.piece-rules h3 {
+  margin: 0;
+  color: #18372e;
+  font-size: 1rem;
+}
+
+.piece-rules {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+}
+
+.piece-rules h3 {
+  padding: 14px 14px 10px;
+}
+
+.piece-rule {
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-top: 1px solid #d8e2dc;
+}
+
+.piece-rule strong {
+  display: block;
+  margin-bottom: 2px;
+  color: #17372f;
+}
+
+.rule-icon {
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 46px;
+  overflow: hidden;
+  border-radius: 6px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.045), transparent 68%),
+    #1b674f;
+  box-shadow: inset 0 0 0 1px rgba(7, 45, 33, 0.45);
+}
+
+.rule-icon .piece {
+  cursor: default;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .rules-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rules-modal {
+    padding: 20px;
+  }
+
+  .piece-rule {
+    grid-template-columns: 46px 1fr;
+  }
+}
+
 @media (max-width: 860px) {
   .play-layout {
     grid-template-columns: 1fr;

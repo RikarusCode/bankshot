@@ -25,7 +25,7 @@ export function validatePuzzle(puzzle: PuzzleConfig): string[] {
   if (!isCoord(value.pocket)) errors.push("Pocket must be a row/col coordinate.");
   if (!directions.includes(value.launchDirection as Direction)) errors.push("Launch direction must be N, E, S, or W.");
   if (!isRecord(value.inventory) || !Number.isInteger(value.inventory.slash) || !Number.isInteger(value.inventory.backslash)) {
-    errors.push("Inventory must include integer slash and backslash counts.");
+    errors.push("Inventory must include integer rail counts.");
   }
   if (!Array.isArray(value.fixedPieces)) errors.push("fixedPieces must be an array.");
   if (errors.length > 0) return errors;
@@ -50,7 +50,7 @@ export function validatePuzzle(puzzle: PuzzleConfig): string[] {
       if (!fixed.gate) {
         errors.push(`One-way gate at ${key} needs gate settings.`);
       } else {
-        if (!orientations.includes(fixed.gate.orientation)) errors.push(`One-way gate at ${key} needs slash or backslash orientation.`);
+        if (!orientations.includes(fixed.gate.orientation)) errors.push(`One-way gate at ${key} needs a valid rail orientation.`);
         if (!directions.includes(fixed.gate.passDirection)) errors.push(`One-way gate at ${key} needs N, E, S, or W pass direction.`);
       }
     }
@@ -75,8 +75,8 @@ export function validatePlayerPieces(puzzle: PuzzleConfig, pieces: PlayerPiece[]
     if (piece.kind === "backslash") backslash += 1;
   }
 
-  if (slash > puzzle.inventory.slash) errors.push("Too many slash bumpers placed.");
-  if (backslash > puzzle.inventory.backslash) errors.push("Too many backslash bumpers placed.");
+  if (slash > puzzle.inventory.slash) errors.push("Too many Rail A pieces placed.");
+  if (backslash > puzzle.inventory.backslash) errors.push("Too many Rail B pieces placed.");
   return errors;
 }
 

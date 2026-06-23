@@ -324,7 +324,6 @@ export default function App() {
                   puzzle={puzzle}
                   playerPieces={playerPieces}
                   selectedPieceId={selectedPieceId}
-                  selectedPlacement={selectedPlacement}
                   locked={locked}
                   shot={shot}
                   muted={muted}
