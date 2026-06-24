@@ -358,7 +358,7 @@ export default function App() {
   const share = dailyPuzzle && dailyProgress ? shareText(dailyPuzzle, dailyProgress, streak) : "";
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell mode-${mode}`}>
       <header className="app-header">
         <div>
           <p className="eyebrow">Daily logic billiards</p>
@@ -388,7 +388,7 @@ export default function App() {
           <section className="game-column">
             {puzzle ? (
               <>
-                <StatsBar mode={mode} puzzle={puzzle} progress={dailyProgress} streak={streak} />
+                {mode !== "custom" && <StatsBar mode={mode} puzzle={puzzle} progress={dailyProgress} streak={streak} />}
                 <div className="board-play-area">
                   <Inventory inventory={puzzle.inventory} playerPieces={playerPieces} selectedItem={selectedPlacement} locked={locked} onSelect={selectInventory} onStartDrag={startInventoryDrag} />
                   <Board

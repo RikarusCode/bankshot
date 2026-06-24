@@ -139,7 +139,7 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
                 <button onClick={() => playEntry(entry)} disabled={entry.status !== "available"}>
                   Play
                 </button>
-                <button onClick={() => void startEdit(entry)}>View JSON</button>
+                <button onClick={() => void startEdit(entry)}>JSON</button>
               </div>
             </article>
           ))}

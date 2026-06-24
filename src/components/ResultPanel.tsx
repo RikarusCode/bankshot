@@ -5,7 +5,7 @@ type ResultPanelProps = {
 };
 
 export function ResultPanel({ result }: ResultPanelProps) {
-  if (!result) return <section className="result-panel idle">Plan the shot, then press Shoot.</section>;
+  if (!result) return null;
 
   const copy = {
     win: "Pocketed. That route was clean.",

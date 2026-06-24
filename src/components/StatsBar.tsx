@@ -9,7 +9,7 @@ type StatsBarProps = {
 
 export function StatsBar({ mode, puzzle, progress, streak }: StatsBarProps) {
   return (
-    <section className="stats-bar">
+    <section className={`stats-bar stats-${mode}`} aria-label="Puzzle status">
       <div>
         <span>Puzzle</span>
         <strong>{puzzle.number ? `#${puzzle.number}` : puzzle.title ?? puzzle.id}</strong>
