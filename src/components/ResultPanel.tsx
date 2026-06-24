@@ -8,8 +8,8 @@ export function ResultPanel({ result }: ResultPanelProps) {
   if (!result) return null;
 
   const copy = {
-    win: "Pocketed. That route was clean.",
-    loop: "Loop detected. The ball cycled several times before the table froze."
+    win: "Pocketed. Nice shot.",
+    loop: "Loop detected. Try again."
   }[result.status];
 
   return (

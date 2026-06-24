@@ -12,11 +12,7 @@ type InventoryProps = {
 };
 
 export function BackpackIcon() {
-  return (
-    <svg className="backpack-icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M8.2 7.2V5.9C8.2 3.7 9.9 2 12 2s3.8 1.7 3.8 3.9v1.3h1.8c1.5 0 2.7 1.2 2.7 2.7v9.3c0 1.6-1.2 2.8-2.8 2.8h-11c-1.6 0-2.8-1.2-2.8-2.8V9.9c0-1.5 1.2-2.7 2.7-2.7h1.8Zm2.1 0h3.4V5.9c0-1-.7-1.7-1.7-1.7s-1.7.7-1.7 1.7v1.3Zm-2.1 4.1c-.5 0-.9.4-.9.9v6.1c0 .5.4.9.9.9h7.6c.5 0 .9-.4.9-.9v-6.1c0-.5-.4-.9-.9-.9H8.2Z" />
-    </svg>
-  );
+  return <img className="backpack-icon" src="/assets/backpack-inventory.png" alt="" aria-hidden="true" draggable={false} />;
 }
 
 export function Inventory({ inventory, playerPieces, selectedItem, locked = false, onSelect, onStartDrag }: InventoryProps) {

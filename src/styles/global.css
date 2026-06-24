@@ -290,19 +290,30 @@ h1 {
   height: 48px;
   place-items: center;
   border-radius: 999px;
-  background: var(--ink);
-  color: #ffffff;
-  box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.12);
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow:
+    inset 0 0 0 1px rgba(16, 36, 31, 0.12),
+    0 3px 9px rgba(16, 36, 31, 0.12);
 }
 
 button.backpack-header {
   min-height: 48px;
+  padding: 0;
+  align-items: center;
+  justify-items: center;
+  appearance: none;
 }
 
 .backpack-icon {
-  width: 30px;
-  height: 30px;
-  fill: currentColor;
+  display: block;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  object-position: center;
+  margin: auto;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .backpack-items {
@@ -357,6 +368,17 @@ button.backpack-header {
   transform: translateY(-1px);
 }
 
+.shoot-controls .primary:hover:not(:disabled) {
+  border-color: rgba(242, 200, 75, 0.42);
+  background:
+    linear-gradient(180deg, #1b3f37, #0d211d);
+  color: #ffffff;
+  box-shadow:
+    0 11px 20px rgba(16, 36, 31, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.22);
+}
+
 .backpack-items button:active,
 .shoot-controls button:active:not(:disabled),
 .share-button:active:not(:disabled),
@@ -371,11 +393,19 @@ button.backpack-header {
   position: relative;
   width: 58px;
   min-height: 58px;
-  padding: 4px;
-  border-radius: 18px;
-  background: #ffffff;
+  padding: 0;
+  border-color: transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  box-shadow: none;
   cursor: grab;
   overflow: visible;
+}
+
+.backpack-items button:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .backpack-items button:active {
@@ -430,6 +460,18 @@ button.backpack-header {
     0 6px 16px rgba(16, 36, 31, 0.1);
 }
 
+.backpack-items .active {
+  background: transparent;
+  box-shadow: none;
+}
+
+.backpack-items .active .backpack-piece {
+  box-shadow:
+    0 0 0 3px rgba(242, 200, 75, 0.34),
+    inset 0 0 0 1px rgba(10, 42, 32, 0.28),
+    0 4px 11px rgba(15, 31, 25, 0.13);
+}
+
 .backpack-items strong {
   position: absolute;
   right: -8px;
@@ -480,6 +522,14 @@ button.backpack-header {
   background: rgba(255, 255, 255, 0.72);
   color: var(--ink-2);
   border-color: var(--line);
+}
+
+.shoot-controls .primary,
+.shoot-controls .primary:not(:disabled) {
+  border-color: rgba(16, 36, 31, 0.24);
+  background:
+    linear-gradient(180deg, #16362f, #10241f);
+  color: #ffffff;
 }
 
 .share-button:not(:disabled) {

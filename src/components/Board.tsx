@@ -47,6 +47,7 @@ export function Board({
   const animationFrameRef = useRef<number | undefined>(undefined);
   const cueTimeoutRef = useRef<number | undefined>(undefined);
   const sinkTimeoutRef = useRef<number | undefined>(undefined);
+  const lastBallSizeRef = useRef(0);
   const mutedRef = useRef(muted);
   const [boardSize, setBoardSize] = useState(0);
   const [hiddenGlassKeys, setHiddenGlassKeys] = useState<Set<string>>(() => new Set());
@@ -103,8 +104,13 @@ export function Board({
     const offset = boardOffsetInRail();
     const x = offset.x + ((coord.col + 0.5) / puzzle.size) * metrics.width - metrics.ballSize / 2;
     const y = offset.y + ((coord.row + 0.5) / puzzle.size) * metrics.width - metrics.ballSize / 2;
-    ball.style.width = `${metrics.ballSize}px`;
-    ball.style.height = `${metrics.ballSize}px`;
+    if (Math.abs(metrics.ballSize - lastBallSizeRef.current) > 0.1) {
+      const size = `${metrics.ballSize}px`;
+      ball.style.width = size;
+      ball.style.height = size;
+      ball.style.setProperty("--ball-size", size);
+      lastBallSizeRef.current = metrics.ballSize;
+    }
     ball.style.opacity = `${opacity}`;
     ball.style.filter = blur > 0 ? `blur(${blur}px)` : "";
     ball.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${spinDegrees}deg) scale(${scale})`;
