@@ -1,5 +1,5 @@
 import { getCookie, getToday, jsonResponse, loadIndex, loadRecord, type FunctionEnv, type ScheduleEntry } from "./archive";
-import type { StreakState } from "../../src/game/types";
+import type { SolveRecord, StreakState } from "../../src/game/types";
 
 type D1PreparedStatement = {
   bind(...values: unknown[]): D1PreparedStatement;
@@ -26,6 +26,7 @@ export type ServerProgress = {
   today: string;
   deviceReady: boolean;
   solvedDates: string[];
+  solves: SolveRecord[];
   solvedToday: boolean;
   todayAttempts?: number;
   streak: StreakState;
@@ -41,6 +42,7 @@ export type SolveInput = {
 type SolveRow = {
   puzzle_date: string;
   attempts: number;
+  solved_at?: string;
 };
 
 const DEVICE_COOKIE = "bankshot_device";
@@ -128,7 +130,7 @@ export function withDeviceCookie(response: Response, session: DeviceSession): Re
 }
 
 async function loadSolveRows(env: DeviceEnv, deviceId: string): Promise<SolveRow[]> {
-  const result = await env.BANKSHOT_DB?.prepare("SELECT puzzle_date, attempts FROM daily_solves WHERE device_id = ? ORDER BY puzzle_date ASC").bind(deviceId).all<SolveRow>();
+  const result = await env.BANKSHOT_DB?.prepare("SELECT puzzle_date, attempts, solved_at FROM daily_solves WHERE device_id = ? ORDER BY puzzle_date ASC").bind(deviceId).all<SolveRow>();
   return result?.results ?? [];
 }
 
@@ -190,10 +192,16 @@ export async function buildServerProgress(env: DeviceEnv, deviceId: string): Pro
   const [index, solveRows] = await Promise.all([loadIndex(env), loadSolveRows(env, deviceId)]);
   const solvedDates = solveRows.map((row) => row.puzzle_date);
   const todaySolve = solveRows.find((row) => row.puzzle_date === today);
+  const solves = solveRows.map((row) => ({
+    date: row.puzzle_date,
+    attempts: row.attempts,
+    solvedOnDate: row.solved_at ? getToday(env, new Date(row.solved_at)) === row.puzzle_date : false
+  }));
   return {
     today,
     deviceReady: true,
     solvedDates,
+    solves,
     solvedToday: solvedDates.includes(today),
     todayAttempts: todaySolve?.attempts,
     streak: computeScheduledStreak(index, solvedDates, today)

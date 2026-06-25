@@ -1,8 +1,9 @@
 import { localDateString } from "./daily";
-import type { DailyProgress, StreakState } from "./types";
+import type { DailyProgress, SolveRecord, StreakState } from "./types";
 
 const PROGRESS_KEY = "bankshot.dailyProgress.v1";
 const STREAK_KEY = "bankshot.streak.v1";
+const SOLVE_HISTORY_KEY = "bankshot.solveHistory.v1";
 
 export function loadDailyProgress(puzzleId: string, date = localDateString()): DailyProgress {
   const raw = localStorage.getItem(PROGRESS_KEY);
@@ -55,5 +56,38 @@ export function updateStreakOnSolve(date: string): StreakState {
     lastSolvedDate: date
   };
   saveStreak(next);
+  return next;
+}
+
+export function loadSolveHistory(): SolveRecord[] {
+  const raw = localStorage.getItem(SOLVE_HISTORY_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as SolveRecord[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((record) => typeof record.date === "string" && Number.isInteger(record.attempts) && typeof record.solvedOnDate === "boolean");
+  } catch {
+    localStorage.removeItem(SOLVE_HISTORY_KEY);
+    return [];
+  }
+}
+
+export function saveSolveHistory(records: SolveRecord[]): void {
+  const normalized = [...records].sort((a, b) => a.date.localeCompare(b.date));
+  localStorage.setItem(SOLVE_HISTORY_KEY, JSON.stringify(normalized));
+}
+
+export function recordLocalSolve(input: SolveRecord): SolveRecord[] {
+  const current = loadSolveHistory();
+  const existing = current.find((record) => record.date === input.date);
+  const nextRecord = existing
+    ? {
+        date: input.date,
+        attempts: Math.min(existing.attempts, input.attempts),
+        solvedOnDate: existing.solvedOnDate || input.solvedOnDate
+      }
+    : input;
+  const next = [...current.filter((record) => record.date !== input.date), nextRecord];
+  saveSolveHistory(next);
   return next;
 }

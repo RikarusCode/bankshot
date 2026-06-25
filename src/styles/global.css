@@ -211,10 +211,6 @@ h1 {
   align-items: start;
 }
 
-.mode-daily .play-layout {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .game-column {
   display: grid;
   gap: clamp(8px, 1.3dvh, 12px);
@@ -269,23 +265,6 @@ h1 {
   grid-template-columns: auto minmax(0, 1fr);
   gap: clamp(1px, 0.35vw, 4px);
   align-items: center;
-}
-
-.daily-action-area {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-}
-
-.daily-action-area .shoot-controls {
-  width: min(100%, 520px);
-  grid-template-columns: minmax(150px, 1.2fr) repeat(2, minmax(112px, 0.8fr));
-  align-items: stretch;
-}
-
-.daily-action-area .result-panel,
-.daily-action-area .share-button {
-  width: min(100%, 520px);
 }
 
 .inventory {
@@ -847,15 +826,6 @@ button.backpack-header {
     grid-template-columns: 1fr;
   }
 
-  .daily-action-area .shoot-controls {
-    width: min(100%, 440px);
-  }
-}
-
-@media (max-width: 560px) {
-  .daily-action-area .shoot-controls {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 640px) {

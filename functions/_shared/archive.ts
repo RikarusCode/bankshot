@@ -4,6 +4,7 @@ import type { ArchiveEntry, PuzzleConfig } from "../../src/game/types";
 type KvNamespace = {
   get(key: string): Promise<string | null>;
   put(key: string, value: string): Promise<void>;
+  delete(key: string): Promise<void>;
 };
 
 export type FunctionEnv = {
@@ -102,6 +103,13 @@ export async function saveRecord(env: FunctionEnv, date: string, puzzle: PuzzleC
 
   await env.PUZZLES_KV.put(puzzleKey(date), JSON.stringify(record));
   await saveIndex(env, [...index.filter((entry) => entry.date !== date), { date, number: nextNumber }]);
+}
+
+export async function deleteRecord(env: FunctionEnv, date: string): Promise<void> {
+  if (!isValidDateKey(date)) throw new Error("Archive date must be YYYY-MM-DD.");
+  const index = await loadIndex(env);
+  await env.PUZZLES_KV.delete(puzzleKey(date));
+  await saveIndex(env, index.filter((entry) => entry.date !== date));
 }
 
 export async function publicArchive(env: FunctionEnv, date = new Date()): Promise<{ today: string; entries: ArchiveEntry[] }> {

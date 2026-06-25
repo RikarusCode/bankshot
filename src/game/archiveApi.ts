@@ -73,6 +73,14 @@ export async function saveArchivePuzzle(date: string, puzzle: PuzzleConfig): Pro
   return readJson(response);
 }
 
+export async function deleteArchivePuzzle(date: string): Promise<ApiResult<{ ok: true }>> {
+  const response = await fetch(`/api/admin/puzzles/${encodeURIComponent(date)}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" }
+  });
+  return readJson(response);
+}
+
 export async function fetchAdminPuzzle(date: string): Promise<ApiResult<{ date: string; puzzle: PuzzleConfig }>> {
   const response = await fetch(`/api/admin/puzzles/${encodeURIComponent(date)}`, { headers: { Accept: "application/json" } });
   return readJson(response);

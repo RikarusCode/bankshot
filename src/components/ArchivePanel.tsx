@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { fetchAdminPuzzle, fetchArchive, fetchArchivePuzzle, loginAdmin, logoutAdmin, saveArchivePuzzle } from "../game/archiveApi";
+import { deleteArchivePuzzle, fetchAdminPuzzle, fetchArchive, fetchArchivePuzzle, loginAdmin, logoutAdmin, saveArchivePuzzle } from "../game/archiveApi";
 import { displayDate } from "../game/daily";
 import { parsePuzzleJson, serializePuzzle } from "../game/puzzleExport";
-import type { ArchiveEntry, PuzzleConfig } from "../game/types";
+import type { ArchiveEntry, PuzzleConfig, SolveRecord } from "../game/types";
 
 type ArchivePanelProps = {
   selectedDate?: string;
+  solveRecords: SolveRecord[];
   onPlayPuzzle: (puzzle: PuzzleConfig, date: string) => void;
 };
 
@@ -19,7 +20,7 @@ type JsonViewState = {
   text: string;
 };
 
-export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) {
+export function ArchivePanel({ selectedDate, solveRecords, onPlayPuzzle }: ArchivePanelProps) {
   const [entries, setEntries] = useState<ArchiveEntry[]>([]);
   const [today, setToday] = useState("");
   const [loading, setLoading] = useState(true);
@@ -97,32 +98,6 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
     }
   }
 
-  async function startEdit(entry: ArchiveEntry) {
-    setErrors([]);
-    setMessage("");
-    setViewingJson(undefined);
-
-    if (!adminUnlocked) {
-      setErrors(["Unlock archive editing first."]);
-      return;
-    }
-
-    const result = await fetchAdminPuzzle(entry.date);
-    if (result.data) {
-      setEditing({ date: entry.date, text: serializePuzzle(result.data.puzzle) });
-      return;
-    }
-    if (result.status !== 404) {
-      setErrors([result.error ?? "Could not load private puzzle JSON."]);
-      return;
-    }
-
-    setEditing({
-      date: entry.date,
-      text: entry.puzzle ? serializePuzzle(entry.puzzle) : ""
-    });
-  }
-
   async function startEditDate(date: string) {
     if (!date.trim()) return;
     setErrors([]);
@@ -150,6 +125,21 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
 
   async function saveEdit() {
     if (!editing) return;
+    if (editing.text.trim() === "") {
+      const confirmed = window.confirm(`Delete the archive puzzle for ${displayDate(editing.date)}? This removes it from the schedule.`);
+      if (!confirmed) return;
+      setErrors([]);
+      const result = await deleteArchivePuzzle(editing.date);
+      if (result.data) {
+        setEditing(undefined);
+        setMessage(`Deleted Bankshot ${displayDate(editing.date)}.`);
+        await loadArchive();
+      } else {
+        setErrors([result.error ?? "Could not delete puzzle."]);
+      }
+      return;
+    }
+
     const parsed = parsePuzzleJson(editing.text);
     setErrors(parsed.errors);
     if (!parsed.puzzle || parsed.errors.length > 0) return;
@@ -162,6 +152,13 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
     } else {
       setErrors([result.error ?? "Could not save puzzle."]);
     }
+  }
+
+  function highlightClass(entry: ArchiveEntry): string {
+    const solve = solveRecords.find((record) => record.date === entry.date);
+    if (!solve) return "";
+    if (solve.attempts === 1 && solve.solvedOnDate) return "perfect-daily";
+    return "solved";
   }
 
   return (
@@ -181,7 +178,7 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
       ) : (
         <div className="archive-list">
           {entries.map((entry) => (
-            <article key={entry.date} className={`archive-row ${selectedDate === entry.date ? "active" : ""}`}>
+            <article key={entry.date} className={`archive-row ${selectedDate === entry.date ? "active" : ""} ${highlightClass(entry)}`}>
               <div>
                 <strong>#{entry.number}</strong>
                 <span>{displayDate(entry.date)}</span>
@@ -194,7 +191,6 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
                 <button onClick={() => void showJson(entry)} disabled={entry.status !== "available"}>
                   JSON
                 </button>
-                {adminUnlocked && <button onClick={() => void startEdit(entry)}>Edit Puzzle</button>}
               </div>
             </article>
           ))}

@@ -62,6 +62,25 @@
   box-shadow: inset 0 0 0 2px rgba(216, 172, 55, 0.24);
 }
 
+.archive-row.solved {
+  border-color: rgba(47, 137, 88, 0.42);
+  background: linear-gradient(180deg, rgba(218, 243, 226, 0.9), rgba(241, 250, 244, 0.96));
+}
+
+.archive-row.perfect-daily {
+  border-color: rgba(49, 92, 132, 0.42);
+  background: linear-gradient(180deg, rgba(210, 226, 239, 0.92), rgba(236, 244, 250, 0.98));
+}
+
+.archive-row.solved strong,
+.archive-row.perfect-daily strong {
+  color: #12342d;
+}
+
+.archive-row.perfect-daily strong {
+  color: #17375c;
+}
+
 .archive-row div:first-child {
   display: grid;
   gap: 2px;

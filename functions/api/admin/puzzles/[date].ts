@@ -1,4 +1,4 @@
-import { jsonResponse, loadRecord, requireAdmin, saveRecord, type FunctionEnv } from "../../../_shared/archive";
+import { deleteRecord, jsonResponse, loadRecord, requireAdmin, saveRecord, type FunctionEnv } from "../../../_shared/archive";
 import type { PuzzleConfig } from "../../../../src/game/types";
 
 type Context = {
@@ -38,4 +38,16 @@ export async function onRequestGet({ request, env, params }: Context): Promise<R
   const record = await loadRecord(env, params.date);
   if (!record) return jsonResponse({ error: "Puzzle not found." }, { status: 404 });
   return jsonResponse({ date: params.date, puzzle: record.puzzle });
+}
+
+export async function onRequestDelete({ request, env, params }: Context): Promise<Response> {
+  const authError = await requireAdmin(request, env);
+  if (authError) return authError;
+
+  try {
+    await deleteRecord(env, params.date);
+    return jsonResponse({ ok: true });
+  } catch (error) {
+    return jsonResponse({ error: error instanceof Error ? error.message : "Could not delete puzzle." }, { status: 400 });
+  }
 }

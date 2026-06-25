@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Board } from "./components/Board";
 import { ArchivePanel } from "./components/ArchivePanel";
 import { Inventory } from "./components/Inventory";
@@ -17,8 +17,8 @@ import { validatePlayerPieces, isCellAvailable } from "./game/puzzleValidation";
 import { shareText } from "./game/scoring";
 import { simulateShot } from "./game/simulate";
 import { primeAudio } from "./game/sound";
-import { loadDailyProgress, loadStreak, saveDailyProgress, saveStreak, updateStreakOnSolve } from "./game/storage";
-import type { Coord, DailyProgress, InventoryItem, Mode, PlayerPiece, PuzzleConfig, SimulationResult, StreakState } from "./game/types";
+import { loadDailyProgress, loadSolveHistory, loadStreak, recordLocalSolve, saveDailyProgress, saveSolveHistory, saveStreak, updateStreakOnSolve } from "./game/storage";
+import type { Coord, DailyProgress, InventoryItem, Mode, PlayerPiece, PuzzleConfig, SimulationResult, SolveRecord, StreakState } from "./game/types";
 import { sampleCustomPuzzle } from "./puzzles";
 
 type DragState = {
@@ -34,6 +34,10 @@ function makePieceId(): string {
 
 function hasInventory(puzzle: PuzzleConfig, pieces: PlayerPiece[], item: InventoryItem): boolean {
   return remainingInventory(puzzle.inventory, pieces).some((current) => inventoryItemKey(current) === inventoryItemKey(item));
+}
+
+function progressSolveRecords(progress: { solves?: SolveRecord[]; solvedDates: string[] }): SolveRecord[] {
+  return progress.solves ?? progress.solvedDates.map((date) => ({ date, attempts: Number.MAX_SAFE_INTEGER, solvedOnDate: false }));
 }
 
 function SoundIcon({ muted }: { muted: boolean }) {
@@ -75,7 +79,12 @@ export default function App() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress | undefined>();
   const [streak, setStreak] = useState<StreakState>(() => loadStreak());
+  const [solveRecords, setSolveRecords] = useState<SolveRecord[]>(() => loadSolveHistory());
   const [activeDailyAttempt, setActiveDailyAttempt] = useState<number | undefined>();
+  const [archiveAttemptCounts, setArchiveAttemptCounts] = useState<Record<string, number>>({});
+  const [activeArchiveAttempt, setActiveArchiveAttempt] = useState<number | undefined>();
+  const [preparingShot, setPreparingShot] = useState(false);
+  const shotRequestRef = useRef(0);
 
   const puzzle = mode === "daily" ? dailyPuzzle : mode === "archive" ? archivePuzzle : customPuzzle;
 
@@ -116,6 +125,9 @@ export default function App() {
         if (progressResult.data) {
           setStreak(progressResult.data.streak);
           saveStreak(progressResult.data.streak);
+          const nextSolves = progressSolveRecords(progressResult.data);
+          setSolveRecords(nextSolves);
+          saveSolveHistory(nextSolves);
           if (progressResult.data.solvedToday) {
             const attempts = progressResult.data.todayAttempts ?? nextDailyProgress.solvedAttempts ?? nextDailyProgress.attempts;
             const syncedProgress: DailyProgress = {
@@ -149,11 +161,14 @@ export default function App() {
     setShot(undefined);
     setRevealedResult(undefined);
     setLocked(false);
+    setPreparingShot(false);
+    shotRequestRef.current += 1;
     setActiveDailyAttempt(undefined);
+    setActiveArchiveAttempt(undefined);
   }, [puzzle?.id, mode]);
 
   const validationErrors = useMemo(() => (puzzle ? validatePlayerPieces(puzzle, playerPieces) : []), [puzzle, playerPieces]);
-  const shootDisabled = !puzzle || locked || Boolean(revealedResult) || validationErrors.length > 0;
+  const shootDisabled = !puzzle || locked || preparingShot || Boolean(revealedResult) || validationErrors.length > 0;
 
   useEffect(() => {
     if (!dragging) return;
@@ -260,18 +275,24 @@ export default function App() {
     setSelectedPieceId(undefined);
   }
 
-  function shoot() {
+  async function shoot() {
     if (!puzzle) return;
     if (shootDisabled) return;
+    const shotRequest = shotRequestRef.current + 1;
+    shotRequestRef.current = shotRequest;
     setLocked(true);
-    void primeAudio(muted).catch(() => {
+    setPreparingShot(true);
+    await primeAudio(muted).catch(() => {
       // If the browser rejects audio unlock, keep gameplay responsive.
     });
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    if (shotRequestRef.current !== shotRequest) return;
     const nextResult = simulateShot(puzzle, playerPieces);
     setShot({ id: Date.now(), result: nextResult });
     setRevealedResult(undefined);
     setSelectedPlacement(undefined);
     setSelectedPieceId(undefined);
+    setPreparingShot(false);
 
     if (mode === "daily" && dailyProgress && !dailyProgress.solved) {
       const attemptNumber = dailyProgress.attempts + 1;
@@ -284,12 +305,20 @@ export default function App() {
       setDailyProgress(nextProgress);
       saveDailyProgress(nextProgress);
     }
+    if (mode === "archive" && archiveDate) {
+      const attemptNumber = (archiveAttemptCounts[archiveDate] ?? 0) + 1;
+      setArchiveAttemptCounts((current) => ({ ...current, [archiveDate]: attemptNumber }));
+      setActiveArchiveAttempt(attemptNumber);
+    }
   }
 
   function stopShot() {
     setLocked(false);
+    setPreparingShot(false);
+    shotRequestRef.current += 1;
     setShot(undefined);
     setActiveDailyAttempt(undefined);
+    setActiveArchiveAttempt(undefined);
   }
 
   function resetBall() {
@@ -321,6 +350,8 @@ export default function App() {
       saveDailyProgress(nextProgress);
       setActiveDailyAttempt(undefined);
       if (result.status === "win" && dailyPuzzle) {
+        const localSolves = recordLocalSolve({ date: nextProgress.date, attempts: completedAttempts, solvedOnDate: true });
+        setSolveRecords(localSolves);
         const localFallback = updateStreakOnSolve(nextProgress.date);
         setStreak(localFallback);
         void saveServerSolve({
@@ -332,8 +363,31 @@ export default function App() {
           if (!progressResult.data) return;
           setStreak(progressResult.data.streak);
           saveStreak(progressResult.data.streak);
+          const nextSolves = progressSolveRecords(progressResult.data);
+          setSolveRecords(nextSolves);
+          saveSolveHistory(nextSolves);
         });
       }
+    }
+
+    if (mode === "archive" && result.status === "win" && archivePuzzle && archiveDate) {
+      const attempts = activeArchiveAttempt ?? archiveAttemptCounts[archiveDate] ?? 1;
+      const localSolves = recordLocalSolve({ date: archiveDate, attempts, solvedOnDate: false });
+      setSolveRecords(localSolves);
+      setActiveArchiveAttempt(undefined);
+      void saveServerSolve({
+        date: archiveDate,
+        puzzleId: archivePuzzle.id,
+        puzzleNumber: archivePuzzle.number,
+        attempts
+      }).then((progressResult) => {
+        if (!progressResult.data) return;
+        setStreak(progressResult.data.streak);
+        saveStreak(progressResult.data.streak);
+        const nextSolves = progressSolveRecords(progressResult.data);
+        setSolveRecords(nextSolves);
+        saveSolveHistory(nextSolves);
+      });
     }
   }
 
@@ -402,13 +456,6 @@ export default function App() {
                     onStartPieceDrag={startPieceDrag}
                   />
                 </div>
-                {mode === "daily" && (
-                  <div className="daily-action-area">
-                    <ShootControls animating={locked} disabled={shootDisabled} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
-                    <ResultPanel result={revealedResult} />
-                    {dailySolved && <ShareButton text={share} disabled={false} />}
-                  </div>
-                )}
               </>
             ) : (
               <section className="empty-state">
@@ -425,18 +472,17 @@ export default function App() {
             )}
           </section>
 
-          {mode !== "daily" && (
-            <aside className="side-panel">
-              {mode === "archive" && <ArchivePanel selectedDate={archiveDate} onPlayPuzzle={playArchivePuzzle} />}
-              {puzzle && (
-                <>
-                  <ShootControls animating={locked} disabled={shootDisabled} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
-                  <ResultPanel result={revealedResult} />
-                </>
-              )}
-              {mode === "custom" && <PuzzleImportExport puzzle={customPuzzle} onImport={importCustomPuzzle} />}
-            </aside>
-          )}
+          <aside className="side-panel">
+            {mode === "archive" && <ArchivePanel selectedDate={archiveDate} solveRecords={solveRecords} onPlayPuzzle={playArchivePuzzle} />}
+            {puzzle && (
+              <>
+                <ShootControls animating={locked} disabled={shootDisabled} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
+                <ResultPanel result={revealedResult} />
+              </>
+            )}
+            {mode === "daily" && dailySolved && <ShareButton text={share} disabled={false} />}
+            {mode === "custom" && <PuzzleImportExport puzzle={customPuzzle} onImport={importCustomPuzzle} />}
+          </aside>
         </div>
       )}
 

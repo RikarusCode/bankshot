@@ -108,10 +108,17 @@ export type StreakState = {
   lastSolvedDate?: string;
 };
 
+export type SolveRecord = {
+  date: string;
+  attempts: number;
+  solvedOnDate: boolean;
+};
+
 export type ServerProgress = {
   today: string;
   deviceReady: boolean;
   solvedDates: string[];
+  solves?: SolveRecord[];
   solvedToday: boolean;
   todayAttempts?: number;
   streak: StreakState;

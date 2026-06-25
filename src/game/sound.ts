@@ -3,8 +3,10 @@ let masterOutput: GainNode | undefined;
 let audioPrimed = false;
 let primePromise: Promise<void> | undefined;
 const lastPlayedAt = new Map<string, number>();
+const noiseBuffers = new Map<string, AudioBuffer>();
 const MASTER_GAIN = 2.25;
 const FIRST_AUDIO_WARMUP_MS = 90;
+const WARM_NOISE_DURATIONS = [0.032, 0.048, 0.052, 0.062, 0.07, 0.2];
 
 function getAudioContext(): AudioContext | undefined {
   if (typeof window === "undefined") return undefined;
@@ -51,6 +53,10 @@ async function primeAudioOnce(): Promise<void> {
   const context = getAudioContext();
   if (!context) return;
   await resumeAudioContext(context);
+  getOutputNode();
+  for (const duration of WARM_NOISE_DURATIONS) {
+    getNoiseBuffer(duration);
+  }
   const gain = context.createGain();
   const oscillator = context.createOscillator();
   gain.gain.setValueAtTime(0.0001, context.currentTime);
@@ -96,21 +102,25 @@ function tone(frequency: number, duration: number, peak = 0.12, type: Oscillator
   oscillator.stop(context.currentTime + duration + 0.04);
 }
 
-function noiseBuffer(duration: number) {
+function getNoiseBuffer(duration: number) {
   const context = getAudioContext();
   if (!context) return undefined;
+  const key = `${context.sampleRate}:${duration}`;
+  const cached = noiseBuffers.get(key);
+  if (cached) return cached;
   const length = Math.max(1, Math.floor(context.sampleRate * duration));
   const buffer = context.createBuffer(1, length, context.sampleRate);
   const data = buffer.getChannelData(0);
   for (let index = 0; index < length; index += 1) {
     data[index] = Math.random() * 2 - 1;
   }
+  noiseBuffers.set(key, buffer);
   return buffer;
 }
 
 function noiseHit(duration: number, peak: number, filterFrequency: number, filterType: BiquadFilterType = "lowpass") {
   const context = getAudioContext();
-  const buffer = noiseBuffer(duration);
+  const buffer = getNoiseBuffer(duration);
   if (!context || !buffer) return;
   const source = context.createBufferSource();
   const filter = context.createBiquadFilter();

@@ -14,6 +14,9 @@ function makeEnv(): FunctionEnv {
       },
       async put(key: string, value: string) {
         store.set(key, value);
+      },
+      async delete(key: string) {
+        store.delete(key);
       }
     }
   };
