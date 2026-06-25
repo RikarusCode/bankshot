@@ -6,7 +6,9 @@ import type { Coord, FixedPiece, PlayerPiece, PuzzleConfig, SimulationResult } f
 import { Cell } from "./Cell";
 
 const BALL_SPEED_CELLS_PER_SECOND = 5.2;
-const CUE_ANIMATION_MS = 360;
+const CUE_STICK_HIT_MS = 260;
+const CUE_FADE_MS = 320;
+const CUE_STICK_PULLBACK_PX = 40;
 const BALL_SINK_MS = 520;
 const POCKET_SINK_EXTRA_CELLS = 0.14;
 
@@ -44,14 +46,18 @@ export function Board({
   const boardRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLDivElement>(null);
   const ballRef = useRef<HTMLDivElement>(null);
+  const cueLayerRef = useRef<HTMLDivElement>(null);
+  const cueBallRef = useRef<HTMLSpanElement>(null);
+  const cueStickRef = useRef<HTMLSpanElement>(null);
   const animationFrameRef = useRef<number | undefined>(undefined);
-  const cueTimeoutRef = useRef<number | undefined>(undefined);
+  const cueFrameRef = useRef<number | undefined>(undefined);
   const sinkTimeoutRef = useRef<number | undefined>(undefined);
   const lastBallSizeRef = useRef(0);
   const mutedRef = useRef(muted);
   const [boardSize, setBoardSize] = useState(0);
   const [hiddenGlassKeys, setHiddenGlassKeys] = useState<Set<string>>(() => new Set());
   const [sinking, setSinking] = useState(false);
+  const [showCue, setShowCue] = useState(false);
   const fixedByCell = new Map<string, FixedPiece>(puzzle.fixedPieces.map((piece) => [coordKey(piece.coord), piece]));
   const playerByCell = new Map<string, PlayerPiece>(playerPieces.map((piece) => [coordKey(piece.coord), piece]));
   const cells: Coord[] = [];
@@ -130,37 +136,42 @@ export function Board({
     window.requestAnimationFrame(() => applyBallStyle(dropCoord, spinDegrees + 96, 0.08, 0, 1.2));
   }
 
-  function cueStyle(): CSSProperties {
+  function cueGeometry() {
     const metrics = ballMetrics();
-    if (!metrics) return {};
+    if (!metrics) return undefined;
     const cell = metrics.width / puzzle.size;
     const offset = boardOffsetInRail();
     const centerX = ((puzzle.start.col + 0.5) / puzzle.size) * metrics.width;
     const centerY = ((puzzle.start.row + 0.5) / puzzle.size) * metrics.width;
     const delta = directionDelta(puzzle.launchDirection);
-    const cueBallSize = Math.min(cell * 0.28, 18);
-    const cueStartDistance = Math.max(cell * 1.55, metrics.ballSize + cueBallSize + 28);
+    const cueBallSize = metrics.ballSize * 0.92;
     const contactDistance = metrics.ballSize / 2 + cueBallSize / 2;
+    const cueStartDistance = Math.max(cell * 1.1, contactDistance + cell * 0.65);
     const cueContactTravel = Math.max(0, cueStartDistance - contactDistance);
     const startX = centerX - delta.col * cueStartDistance;
     const startY = centerY - delta.row * cueStartDistance;
     const angle = Math.atan2(delta.row, delta.col) * (180 / Math.PI);
+    return { offset, startX, startY, angle, cell, cueBallSize, cueContactTravel };
+  }
+
+  function cueStyle(): CSSProperties {
+    const geometry = cueGeometry();
+    if (!geometry) return {};
     return {
-      "--cue-x": `${offset.x + startX}px`,
-      "--cue-y": `${offset.y + startY}px`,
-      "--cue-angle": `${angle}deg`,
-      "--cue-contact": `${cueContactTravel}px`,
-      "--cue-stick-start": `${cueContactTravel + 112}px`,
-      "--cue-stick-strike": `10px`,
-      "--cell-size": `${cell}px`
+      "--cue-x": `${geometry.offset.x + geometry.startX}px`,
+      "--cue-y": `${geometry.offset.y + geometry.startY}px`,
+      "--cue-angle": `${geometry.angle}deg`,
+      "--cue-ball-size": `${geometry.cueBallSize}px`,
+      "--cell-size": `${geometry.cell}px`
     } as CSSProperties;
   }
 
   useEffect(() => {
     if (!shot) {
       if (animationFrameRef.current !== undefined) window.cancelAnimationFrame(animationFrameRef.current);
-      if (cueTimeoutRef.current !== undefined) window.clearTimeout(cueTimeoutRef.current);
+      if (cueFrameRef.current !== undefined) window.cancelAnimationFrame(cueFrameRef.current);
       if (sinkTimeoutRef.current !== undefined) window.clearTimeout(sinkTimeoutRef.current);
+      setShowCue(false);
       setSinking(false);
       setBallTransform(puzzle.start, 0);
       return;
@@ -178,6 +189,7 @@ export function Board({
     let segmentStartedAt: number | undefined;
     let cumulativeDistance = 0;
     const soundedEvents = new Set<number>();
+    setShowCue(true);
     setBallTransform(segments[0].from.coord, 0);
 
     const animate = (time: number) => {
@@ -230,14 +242,62 @@ export function Board({
       animationFrameRef.current = window.requestAnimationFrame(animate);
     };
 
-    cueTimeoutRef.current = window.setTimeout(() => {
-      playCueStrike(mutedRef.current);
-      animationFrameRef.current = window.requestAnimationFrame(animate);
-    }, CUE_ANIMATION_MS);
+    let cueSoundPlayed = false;
+    let ballLaunched = false;
+
+    const startCueTimeline = (timelineStartedAt: number) => {
+      const cueLayer = cueLayerRef.current;
+      const cueBall = cueBallRef.current;
+      const cueStick = cueStickRef.current;
+      const geometry = cueGeometry();
+      if (!cueLayer || !cueBall || !cueStick || !geometry) {
+        cueFrameRef.current = window.requestAnimationFrame(startCueTimeline);
+        return;
+      }
+
+      const cueBallTravelMs = Math.max(70, (geometry.cueContactTravel / geometry.cell / BALL_SPEED_CELLS_PER_SECOND) * 1000);
+      const cueBallHitMs = CUE_STICK_HIT_MS + cueBallTravelMs;
+      const fadeStartMs = cueBallHitMs + (1 / BALL_SPEED_CELLS_PER_SECOND) * 1000;
+      const cueEndMs = fadeStartMs + CUE_FADE_MS;
+      const easeOut = (value: number) => 1 - Math.pow(1 - value, 3);
+
+      const animateCue = (time: number) => {
+        const elapsed = time - timelineStartedAt;
+        const stickProgress = Math.min(1, Math.max(0, elapsed / CUE_STICK_HIT_MS));
+        const stickX = -CUE_STICK_PULLBACK_PX * (1 - easeOut(stickProgress));
+        cueStick.style.transform = `translate3d(${stickX}px, 0, 0)`;
+
+        if (!cueSoundPlayed && elapsed >= CUE_STICK_HIT_MS) {
+          cueSoundPlayed = true;
+          playCueStrike(mutedRef.current);
+        }
+
+        const cueBallProgress = Math.min(1, Math.max(0, (elapsed - CUE_STICK_HIT_MS) / cueBallTravelMs));
+        cueBall.style.transform = `translate3d(${geometry.cueContactTravel * cueBallProgress}px, 0, 0)`;
+
+        if (!ballLaunched && elapsed >= cueBallHitMs) {
+          ballLaunched = true;
+          animationFrameRef.current = window.requestAnimationFrame(animate);
+        }
+
+        const fadeProgress = Math.min(1, Math.max(0, (elapsed - fadeStartMs) / CUE_FADE_MS));
+        cueLayer.style.opacity = `${1 - fadeProgress}`;
+
+        if (elapsed < cueEndMs) {
+          cueFrameRef.current = window.requestAnimationFrame(animateCue);
+        } else {
+          setShowCue(false);
+        }
+      };
+
+      cueFrameRef.current = window.requestAnimationFrame(animateCue);
+    };
+
+    cueFrameRef.current = window.requestAnimationFrame(startCueTimeline);
 
     return () => {
       if (animationFrameRef.current !== undefined) window.cancelAnimationFrame(animationFrameRef.current);
-      if (cueTimeoutRef.current !== undefined) window.clearTimeout(cueTimeoutRef.current);
+      if (cueFrameRef.current !== undefined) window.cancelAnimationFrame(cueFrameRef.current);
       if (sinkTimeoutRef.current !== undefined) window.clearTimeout(sinkTimeoutRef.current);
     };
   }, [shot?.id, boardSize, puzzle.id]);
@@ -312,10 +372,10 @@ export function Board({
         <div ref={ballRef} className={`eight-ball ${sinking ? "sinking" : ""}`} style={{ "--cell-size": `${100 / puzzle.size}%` } as CSSProperties}>
           <span className="eight-ball-number">8</span>
         </div>
-        {shot && (
-          <div className="cue-launch" style={cueStyle()} aria-hidden="true">
-            <span className="animated-cue-stick" />
-            <span className="animated-cue-ball" />
+        {showCue && (
+          <div ref={cueLayerRef} className="cue-launch" style={cueStyle()} aria-hidden="true">
+            <span ref={cueStickRef} className="animated-cue-stick" />
+            <span ref={cueBallRef} className="animated-cue-ball" />
           </div>
         )}
       </div>

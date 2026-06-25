@@ -260,15 +260,13 @@ export default function App() {
     setSelectedPieceId(undefined);
   }
 
-  async function shoot() {
+  function shoot() {
     if (!puzzle) return;
     if (shootDisabled) return;
     setLocked(true);
-    try {
-      await primeAudio(muted);
-    } catch {
+    void primeAudio(muted).catch(() => {
       // If the browser rejects audio unlock, keep gameplay responsive.
-    }
+    });
     const nextResult = simulateShot(puzzle, playerPieces);
     setShot({ id: Date.now(), result: nextResult });
     setRevealedResult(undefined);
@@ -356,6 +354,7 @@ export default function App() {
   }
 
   const share = dailyPuzzle && dailyProgress ? shareText(dailyPuzzle, dailyProgress, streak) : "";
+  const dailySolved = mode === "daily" && Boolean(dailyProgress?.solved);
 
   return (
     <main className={`app-shell mode-${mode}`}>
@@ -388,7 +387,7 @@ export default function App() {
           <section className="game-column">
             {puzzle ? (
               <>
-                {mode !== "custom" && <StatsBar mode={mode} puzzle={puzzle} progress={dailyProgress} streak={streak} />}
+                {mode === "daily" && <StatsBar mode={mode} puzzle={puzzle} progress={dailyProgress} streak={streak} />}
                 <div className="board-play-area">
                   <Inventory inventory={puzzle.inventory} playerPieces={playerPieces} selectedItem={selectedPlacement} locked={locked} onSelect={selectInventory} onStartDrag={startInventoryDrag} />
                   <Board
@@ -403,6 +402,13 @@ export default function App() {
                     onStartPieceDrag={startPieceDrag}
                   />
                 </div>
+                {mode === "daily" && (
+                  <div className="daily-action-area">
+                    <ShootControls animating={locked} disabled={shootDisabled} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
+                    <ResultPanel result={revealedResult} />
+                    {dailySolved && <ShareButton text={share} disabled={false} />}
+                  </div>
+                )}
               </>
             ) : (
               <section className="empty-state">
@@ -419,17 +425,18 @@ export default function App() {
             )}
           </section>
 
-          <aside className="side-panel">
-            {mode === "archive" && <ArchivePanel selectedDate={archiveDate} onPlayPuzzle={playArchivePuzzle} />}
-            {puzzle && (
-              <>
-                <ShootControls animating={locked} disabled={shootDisabled} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
-                <ResultPanel result={revealedResult} />
-              </>
-            )}
-            {mode === "daily" && <ShareButton text={share} disabled={!dailyProgress?.solved} />}
-            {mode === "custom" && <PuzzleImportExport puzzle={customPuzzle} onImport={importCustomPuzzle} />}
-          </aside>
+          {mode !== "daily" && (
+            <aside className="side-panel">
+              {mode === "archive" && <ArchivePanel selectedDate={archiveDate} onPlayPuzzle={playArchivePuzzle} />}
+              {puzzle && (
+                <>
+                  <ShootControls animating={locked} disabled={shootDisabled} onShoot={shoot} onClear={clearBoard} onResetBall={resetBall} />
+                  <ResultPanel result={revealedResult} />
+                </>
+              )}
+              {mode === "custom" && <PuzzleImportExport puzzle={customPuzzle} onImport={importCustomPuzzle} />}
+            </aside>
+          )}
         </div>
       )}
 

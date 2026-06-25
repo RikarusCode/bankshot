@@ -14,6 +14,11 @@ type EditState = {
   text: string;
 };
 
+type JsonViewState = {
+  date: string;
+  text: string;
+};
+
 export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) {
   const [entries, setEntries] = useState<ArchiveEntry[]>([]);
   const [today, setToday] = useState("");
@@ -23,6 +28,7 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
   const [password, setPassword] = useState("");
   const [newDate, setNewDate] = useState("");
   const [editing, setEditing] = useState<EditState | undefined>();
+  const [viewingJson, setViewingJson] = useState<JsonViewState | undefined>();
   const [errors, setErrors] = useState<string[]>([]);
 
   async function loadArchive() {
@@ -69,31 +75,77 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
     await logoutAdmin();
     setAdminUnlocked(false);
     setEditing(undefined);
+    setViewingJson(undefined);
     setMessage("Archive editing locked.");
+  }
+
+  async function showJson(entry: ArchiveEntry) {
+    setErrors([]);
+    setMessage("");
+    setEditing(undefined);
+
+    if (entry.puzzle) {
+      setViewingJson({ date: entry.date, text: serializePuzzle(entry.puzzle) });
+      return;
+    }
+
+    const result = await fetchArchivePuzzle(entry.date);
+    if (result.data) {
+      setViewingJson({ date: entry.date, text: serializePuzzle(result.data.puzzle) });
+    } else {
+      setErrors([result.error ?? "That puzzle JSON is not public yet."]);
+    }
   }
 
   async function startEdit(entry: ArchiveEntry) {
     setErrors([]);
     setMessage("");
-    if (adminUnlocked && !entry.puzzle) {
-      const result = await fetchAdminPuzzle(entry.date);
-      if (result.data) {
-        setEditing({ date: entry.date, text: serializePuzzle(result.data.puzzle) });
-        return;
-      }
-      if (result.status !== 404) setErrors([result.error ?? "Could not load private puzzle JSON."]);
+    setViewingJson(undefined);
+
+    if (!adminUnlocked) {
+      setErrors(["Unlock archive editing first."]);
+      return;
     }
+
+    const result = await fetchAdminPuzzle(entry.date);
+    if (result.data) {
+      setEditing({ date: entry.date, text: serializePuzzle(result.data.puzzle) });
+      return;
+    }
+    if (result.status !== 404) {
+      setErrors([result.error ?? "Could not load private puzzle JSON."]);
+      return;
+    }
+
     setEditing({
       date: entry.date,
       text: entry.puzzle ? serializePuzzle(entry.puzzle) : ""
     });
   }
 
-  function startEditDate(date: string) {
+  async function startEditDate(date: string) {
     if (!date.trim()) return;
     setErrors([]);
     setMessage("");
-    setEditing({ date: date.trim(), text: "" });
+    setViewingJson(undefined);
+
+    if (!adminUnlocked) {
+      setErrors(["Unlock archive editing first."]);
+      return;
+    }
+
+    const normalizedDate = date.trim();
+    const result = await fetchAdminPuzzle(normalizedDate);
+    if (result.data) {
+      setEditing({ date: normalizedDate, text: serializePuzzle(result.data.puzzle) });
+      return;
+    }
+    if (result.status !== 404) {
+      setErrors([result.error ?? "Could not load private puzzle JSON."]);
+      return;
+    }
+
+    setEditing({ date: normalizedDate, text: "" });
   }
 
   async function saveEdit() {
@@ -139,7 +191,10 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
                 <button onClick={() => playEntry(entry)} disabled={entry.status !== "available"}>
                   Play
                 </button>
-                <button onClick={() => void startEdit(entry)}>JSON</button>
+                <button onClick={() => void showJson(entry)} disabled={entry.status !== "available"}>
+                  JSON
+                </button>
+                {adminUnlocked && <button onClick={() => void startEdit(entry)}>Edit Puzzle</button>}
               </div>
             </article>
           ))}
@@ -150,7 +205,7 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
         {adminUnlocked ? (
           <>
             <input type="date" value={newDate} onChange={(event) => setNewDate(event.target.value)} />
-            <button onClick={() => startEditDate(newDate)} disabled={!newDate}>
+            <button onClick={() => void startEditDate(newDate)} disabled={!newDate}>
               Edit Puzzle
             </button>
             <button onClick={lockAdmin}>Lock</button>
@@ -175,6 +230,16 @@ export function ArchivePanel({ selectedDate, onPlayPuzzle }: ArchivePanelProps) 
           <button className="primary" onClick={saveEdit} disabled={!adminUnlocked}>
             Publish Edits
           </button>
+        </div>
+      )}
+
+      {viewingJson && (
+        <div className="archive-editor archive-json-view">
+          <div className="panel-heading">
+            <h2>JSON {displayDate(viewingJson.date)}</h2>
+            <button onClick={() => setViewingJson(undefined)}>Close</button>
+          </div>
+          <textarea value={viewingJson.text} readOnly spellCheck={false} aria-label={`Puzzle JSON for ${displayDate(viewingJson.date)}`} />
         </div>
       )}
 
