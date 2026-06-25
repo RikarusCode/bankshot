@@ -2,7 +2,11 @@ import { displayDate } from "./daily";
 import type { DailyProgress, PuzzleConfig, StreakState } from "./types";
 
 export function shotSquares(progress: DailyProgress): string {
-  if (progress.shotHistory.length === 0) return "⬜";
+  if (progress.solved) {
+    const totalAttempts = Math.max(1, progress.solvedAttempts ?? progress.attempts ?? progress.shotHistory.length);
+    return `${"🟨".repeat(Math.max(0, totalAttempts - 1))}🟩`;
+  }
+  if (progress.shotHistory.length === 0) return progress.attempts > 0 ? "🟨".repeat(progress.attempts) : "⬜";
   return progress.shotHistory.map((status) => (status === "win" ? "🟩" : "🟨")).join("");
 }
 
