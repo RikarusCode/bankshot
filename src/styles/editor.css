@@ -25,7 +25,8 @@
 }
 
 .import-export textarea,
-.archive-editor textarea {
+.archive-editor textarea,
+.editor-json-panel textarea {
   width: 100%;
   min-height: 220px;
   resize: vertical;
@@ -181,7 +182,7 @@
 
 .editor-workbench {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(360px, 620px) minmax(260px, 1fr);
   gap: 14px;
   align-items: start;
 }
@@ -481,12 +482,105 @@
   justify-content: flex-end;
 }
 
+.editor-json-panel {
+  display: grid;
+  align-self: start;
+  grid-template-rows: auto minmax(230px, auto) auto;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(184, 200, 190, 0.78);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(240, 247, 242, 0.9)),
+    var(--surface-soft);
+}
+
+.editor-json-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.editor-json-heading h2 {
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1;
+}
+
+.editor-json-buttons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: flex-end;
+}
+
+.editor-json-panel button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink-2);
+  font-size: 0.82rem;
+  font-weight: 850;
+  transition:
+    transform var(--speed) ease,
+    background var(--speed) ease,
+    border-color var(--speed) ease,
+    box-shadow var(--speed) ease;
+}
+
+.editor-json-panel button:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.editor-json-panel button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+
+.editor-json-panel textarea {
+  min-height: 220px;
+  max-height: 370px;
+  border-color: rgba(184, 200, 190, 0.86);
+  background: rgba(255, 255, 255, 0.86);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.editor-json-buttons .primary {
+  min-height: 42px;
+  border-color: rgba(16, 36, 31, 0.24);
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 0.9rem;
+  box-shadow:
+    0 8px 16px rgba(16, 36, 31, 0.16),
+    inset 0 -3px 0 rgba(255, 255, 255, 0.1);
+}
+
 @media (max-width: 740px) {
   .editor-controls {
     grid-template-columns: 1fr 1fr;
   }
 
   .editor-hint {
+    grid-column: 1 / -1;
+  }
+
+  .editor-workbench {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .editor-json-panel {
     grid-column: 1 / -1;
   }
 }
@@ -498,6 +592,10 @@
 
   .editor-workbench {
     grid-template-columns: 1fr;
+  }
+
+  .editor-json-panel {
+    grid-column: auto;
   }
 
   .editor-backpack {

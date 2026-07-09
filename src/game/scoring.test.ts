@@ -8,6 +8,8 @@ const progress: DailyProgress = {
   attempts: 3,
   solved: true,
   solvedAttempts: 3,
+  solvedBounces: 7,
+  solvedPiecesPlaced: 2,
   shotHistory: ["win"]
 };
 
@@ -28,5 +30,6 @@ describe("share scoring", () => {
   it("uses solvedAttempts when shot history is shorter than the attempt count", () => {
     expect(shotSquares(progress)).toBe("🟨🟨🟩");
     expect(shareText(puzzle, progress, { current: 1 })).toContain("🟨🟨🟩");
+    expect(shareText(puzzle, progress, { current: 1 })).toContain("7 bounces • 2 pieces");
   });
 });

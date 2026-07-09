@@ -13,5 +13,9 @@ export function shotSquares(progress: DailyProgress): string {
 export function shareText(puzzle: PuzzleConfig, progress: DailyProgress, streak: StreakState): string {
   const puzzleNumber = puzzle.number ? `#${puzzle.number}` : puzzle.id;
   const date = puzzle.date ? displayDate(puzzle.date) : progress.date;
-  return [`Bankshot ${puzzleNumber} - ${date}`, shotSquares(progress), `Streak: ${streak.current}`].join("\n");
+  const solvedStats =
+    progress.solvedBounces !== undefined && progress.solvedPiecesPlaced !== undefined
+      ? [`${progress.solvedBounces} bounce${progress.solvedBounces === 1 ? "" : "s"} • ${progress.solvedPiecesPlaced} piece${progress.solvedPiecesPlaced === 1 ? "" : "s"}`]
+      : [];
+  return [`Bankshot ${puzzleNumber} - ${date}`, shotSquares(progress), ...solvedStats, `Streak: ${streak.current}`].join("\n");
 }

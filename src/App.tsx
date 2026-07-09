@@ -344,6 +344,8 @@ export default function App() {
         attempts: Math.max(dailyProgress.attempts, completedAttempts),
         solved: result.status === "win",
         solvedAttempts: result.status === "win" ? completedAttempts : dailyProgress.solvedAttempts,
+        solvedBounces: result.status === "win" ? result.bounces : dailyProgress.solvedBounces,
+        solvedPiecesPlaced: result.status === "win" ? playerPieces.length : dailyProgress.solvedPiecesPlaced,
         shotHistory: [...dailyProgress.shotHistory, result.status]
       };
       setDailyProgress(nextProgress);

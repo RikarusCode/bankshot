@@ -100,6 +100,8 @@ export type DailyProgress = {
   attempts: number;
   solved: boolean;
   solvedAttempts?: number;
+  solvedBounces?: number;
+  solvedPiecesPlaced?: number;
   shotHistory: SimulationStatus[];
 };
 

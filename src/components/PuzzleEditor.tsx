@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { isInside, isPocketCoord, launchDirectionForStart } from "../game/directions";
 import { addInventoryItem, countedInventory, inventoryItemClass, inventoryItemKey, inventoryItemLabel, removeInventoryItem } from "../game/inventory";
-import { serializePuzzle } from "../game/puzzleExport";
+import { parsePuzzleJson, serializePuzzle } from "../game/puzzleExport";
 import { validatePuzzle } from "../game/puzzleValidation";
 import type { Coord, Direction, FixedPiece, InventoryItem, PuzzleConfig, ReflectorOrientation } from "../game/types";
 import { BackpackIcon } from "./Inventory";
@@ -92,8 +92,15 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
   const [gatePassDirection, setGatePassDirection] = useState<Direction>("E");
   const [dragging, setDragging] = useState<EditorDragState | undefined>();
   const [suppressClickKey, setSuppressClickKey] = useState<string | undefined>();
+  const [jsonText, setJsonText] = useState(serializePuzzle(puzzle));
+  const [jsonErrors, setJsonErrors] = useState<string[]>([]);
   const errors = useMemo(() => validatePuzzle(puzzle), [puzzle]);
   const currentInventoryItem = useMemo(() => editorToolInventoryItem(tool, railShape, gatePassDirection), [tool, railShape, gatePassDirection]);
+
+  useEffect(() => {
+    setJsonText(serializePuzzle(puzzle));
+    setJsonErrors([]);
+  }, [puzzle]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -172,6 +179,12 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
 
   async function copyJson() {
     await navigator.clipboard.writeText(serializePuzzle(puzzle));
+  }
+
+  function loadJsonIntoEditor() {
+    const parsed = parsePuzzleJson(jsonText);
+    setJsonErrors(parsed.errors);
+    if (parsed.puzzle && parsed.errors.length === 0) onPuzzleChange(parsed.puzzle);
   }
 
   function addSelectedToInventory() {
@@ -307,6 +320,26 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
             );
           })}
         </div>
+
+        <aside className="editor-json-panel" aria-label="Puzzle JSON">
+          <div className="editor-json-heading">
+            <h2>Puzzle JSON</h2>
+            <div className="editor-json-buttons">
+              <button onClick={copyJson}>Copy JSON</button>
+              <button className="primary" onClick={loadJsonIntoEditor}>
+                Load Into Editor
+              </button>
+            </div>
+          </div>
+          <textarea value={jsonText} onChange={(event) => setJsonText(event.target.value)} spellCheck={false} placeholder="Paste full puzzle JSON here." />
+          {jsonErrors.length > 0 && (
+            <ul className="errors">
+              {jsonErrors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          )}
+        </aside>
       </div>
 
       {dragging && (
@@ -332,7 +365,6 @@ export function PuzzleEditor({ puzzle, onPuzzleChange, onPlayPuzzle }: PuzzleEdi
 
       <div className="editor-actions">
         <button onClick={() => onPuzzleChange({ ...puzzle, fixedPieces: [] })}>Clear Board</button>
-        <button onClick={copyJson}>Copy JSON</button>
         <button className="primary" disabled={errors.length > 0} onClick={() => onPlayPuzzle(puzzle)}>
           Play Puzzle
         </button>

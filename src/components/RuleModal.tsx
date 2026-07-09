@@ -62,7 +62,7 @@ export function RuleModal({ open, onClose }: RuleModalProps) {
             </RuleIcon>
             <div>
               <strong>Gate</strong>
-              <p>The green side lets the ball pass through. Yellow approaches bounce using the gate's rail angle.</p>
+              <p>The green side lets the ball pass through; the yellow side deflects the ball.</p>
             </div>
           </div>
         </section>
